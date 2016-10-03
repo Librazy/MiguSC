@@ -1,5 +1,3 @@
-﻿#include <windows.h>
-
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
@@ -326,7 +324,7 @@ int WinMain(HINSTANCE hInstance,
 {
 	cv::namedWindow("src", 1);
 
-	ori = cv::imread("qwe.jpg");
+	ori = cv::imread("x.png");
 	src = dst = ori.clone();
 
 	imshow("src", src);
