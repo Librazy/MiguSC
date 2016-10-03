@@ -10,8 +10,7 @@ endif(WIN32)
 
 target_link_libraries( DAY2 ${OpenCV_LIBRARIES} )
 target_link_libraries( DAY2 ${OPENGL_LIBRARIES} )
-     
-install (TARGETS DAY2 DESTINATION bin)
+
 add_subdirectory(triangle)
 
 add_dependencies(DAY2 triangle)

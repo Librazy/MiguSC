@@ -231,9 +231,9 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 	drawContours(mask, co_ordinates, 0, cv::Scalar(255), CV_FILLED, 8);
 	drawContours(mask2, co_ordinates2, 0, cv::Scalar(255), CV_FILLED, 8);
 
-	cv::Mat Kernel(cv::Size(3, 3), CV_8UC1);
-	Kernel.setTo(cv::Scalar(1));
-	dilate(mask, mask, Kernel, cv::Point(-1, -1), 4);
+	cv::Mat kernel(cv::Size(3, 3), CV_8UC1);
+	kernel.setTo(cv::Scalar(1));
+	dilate(mask, mask, kernel, cv::Point(-1, -1), 4);
 
 	cv::namedWindow("x", 1);
 	imshow("x", mask);
