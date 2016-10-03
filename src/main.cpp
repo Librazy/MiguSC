@@ -227,6 +227,18 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 			draw_line(dst, oriPoints[i], oriPoints[(i + 1) % oriPoints.size()]);
 		}
 	}
+	cv::Mat black(src.rows, src.cols, src.type(), cv::Scalar::all(0));
+	cv::Mat mask(src.rows, src.cols, CV_8UC1, cv::Scalar(0));
+	std::vector<std::vector<cv::Point> >  co_ordinates;
+	co_ordinates.push_back(std::vector<cv::Point>{
+		oriPoints[0],
+		oriPoints[1],
+		oriPoints[2]
+	});
+
+	drawContours(mask, co_ordinates, 0, cv::Scalar(255), CV_FILLED, 8);
+	dst = black.clone();
+	ori.copyTo(dst,mask);
 	imshow("dst", dst);
 	auto affTrans = getAffineTransform(oriPoints, points);
 	warpAffine(dst, dst2, affTrans, size, cv::InterpolationFlags::INTER_AREA);
