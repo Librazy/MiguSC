@@ -1,3 +1,7 @@
+﻿#ifdef _MSC_VER
+#include <windows.h>
+#endif
+
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
@@ -61,6 +65,8 @@ int n = 0;
 std::vector<cv::Point2f> points;
 std::vector<cv::Point2f> oriPoints;
 std::vector<imgText> labels;
+
+static const std::string mainWindowName = "Affine with CUDA support";
 
 static bool checkCricle(cv::Point2f point)
 {
@@ -165,11 +171,11 @@ void addPoint()
 		auto img_copy = tmp.clone();
 		// Draw delaunay triangles
 		draw_delaunay(img_copy, subdiv, cv::Scalar(0, 0, 255, 0));
-		imshow("src", img_copy);
+		imshow(mainWindowName, img_copy);
 		cv::waitKey(500);
 	}
 
-	imshow("src", tmp);
+	imshow(mainWindowName, tmp);
 }
 
 void dragPoint(int event, int x, int y, int flags, void* ustc)
@@ -227,7 +233,7 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 
 	cv::Mat Kernel(cv::Size(3, 3), CV_8UC1);
 	Kernel.setTo(cv::Scalar(1));
-	dilate(mask, mask, Kernel, cv::Point(-1, -1), 3);
+	dilate(mask, mask, Kernel, cv::Point(-1, -1), 4);
 
 	cv::namedWindow("x", 1);
 	imshow("x", mask);
@@ -243,7 +249,7 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 	for (auto p : points) {
 		draw_point(src, p, cv::Scalar(255, 200, 0, 0));
 	}
-	imshow("src", src);
+	imshow(mainWindowName, src);
 }
 
 void on_mouse(int event, int x, int y, int flags, void* ustc)
@@ -289,15 +295,15 @@ void on_mouse(int event, int x, int y, int flags, void* ustc)
 		if (points.size() >= 1) {
 			draw_line(src, points[points.size() - 1], pt);
 		}
-		imshow("src", src);
+		imshow(mainWindowName, src);
 	}else if (event == CV_EVENT_LBUTTONDOWN) {
 
 		pt = cv::Point(x, y);
 
 		if (points.size() >= 3 || checkCricle(pt)) {
-			imshow("src", src);
-			cv::setMouseCallback("src", nullptr, nullptr);
-			cv::setMouseCallback("src", dragPoint, nullptr);
+			imshow(mainWindowName, src);
+			cv::setMouseCallback(mainWindowName, nullptr, nullptr);
+			cv::setMouseCallback(mainWindowName, dragPoint, nullptr);
 			oriPoints.insert(oriPoints.cend(), points.begin(), points.end());
 		} else {
 			points.push_back(pt);
@@ -313,6 +319,7 @@ void on_mouse(int event, int x, int y, int flags, void* ustc)
 	}
 }
 
+#ifdef _MSC_VER
 #ifdef _DEBUG
 int main()
 #else
@@ -321,15 +328,22 @@ int WinMain(HINSTANCE hInstance,
 	LPTSTR    lpCmdLine,
 	int       nCmdShow)
 #endif // !DEBUG
-{
-	cv::namedWindow("src", 1);
 
-	ori = cv::imread("x.png");
+#elif
+int main()
+#endif// _MSC_VER
+{
+	cv::namedWindow(mainWindowName, 1);
+
+	ori = cv::imread("qwe.jpg");
 	src = dst = ori.clone();
 
-	imshow("src", src);
-	cv::setMouseCallback("src", on_mouse, nullptr);
-	cvWaitKey(0);
+	imshow(mainWindowName, src);
+	cv::setMouseCallback(mainWindowName, on_mouse, nullptr);
+	int i = 1;
+	while (i++) {
+		cvWaitKey(0);
+	}
 	cvDestroyAllWindows();
 
 
