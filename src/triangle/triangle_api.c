@@ -533,4 +533,55 @@ int triangle_read_area(const char* filename, triangleio *io)
 	return status;
 }
 
+void reset_triangleio(triangleio *io)
+{
+	io->pointlist = (REAL *)NULL;
+	io->pointattributelist = (REAL *)NULL;
+	io->pointmarkerlist = (int *)NULL;
+	io->numberofpoints = 0;
+	io->numberofpointattributes = 0;
+
+	io->trianglelist = (int *)NULL;
+	io->triangleattributelist = (REAL *)NULL;
+	io->trianglearealist = (REAL *)NULL;
+	io->neighborlist = (int *)NULL;
+	io->numberoftriangles = 0;
+	io->numberofcorners = 0;
+	io->numberoftriangleattributes = 0;
+
+	io->segmentlist = (int *)NULL;
+	io->segmentmarkerlist = (int *)NULL;
+	io->numberofsegments = 0;
+
+	io->holelist = (REAL *)NULL;
+	io->numberofholes = 0;
+	io->regionlist = (REAL *)NULL;
+	io->numberofregions = 0;
+
+	io->edgelist = (int *)NULL;
+	io->edgemarkerlist = (int *)NULL;
+	io->numberofedges = 0;
+}
+
+void free_triangleio(triangleio *io)
+{
+	free(io->pointlist);
+	free(io->pointattributelist);
+	free(io->pointmarkerlist);
+
+	free(io->trianglelist);
+	free(io->triangleattributelist);
+	free(io->trianglearealist);
+	free(io->neighborlist);
+
+	free(io->segmentlist);
+	free(io->segmentmarkerlist);
+
+	free(io->holelist);
+	free(io->regionlist);
+
+	free(io->edgelist);
+	free(io->edgemarkerlist);
+}
+
 #endif /* NO_FILE_IO */

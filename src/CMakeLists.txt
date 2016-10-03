@@ -14,3 +14,5 @@ target_link_libraries( DAY2 ${OPENGL_LIBRARIES} )
 add_subdirectory(triangle)
 
 add_dependencies(DAY2 triangle)
+
+target_link_libraries(DAY2 triangle)

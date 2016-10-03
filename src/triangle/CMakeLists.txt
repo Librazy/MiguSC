@@ -20,3 +20,5 @@ add_library(triangle STATIC
  triangle_api.c
  triangle_helper.h
  triangle_helper.c)
+ 
+add_definitions(-D_CRT_SECURE_NO_WARNINGS)

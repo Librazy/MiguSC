@@ -32,12 +32,9 @@ typedef struct {
 void syntax();
 void info();
 void parsecommandline_legacy(int argc, char **argv, behavior_legacy *b);
-void check_behavior(behavior *b, behavior_legacy *lb);
 
 void print_statistics(context *ctx, int verbose);
 
-void reset_triangleio(triangleio *io);
-void free_triangleio(triangleio *io);
 void check_mesh(context *ctx);
 
 void check(int code, const char *site);

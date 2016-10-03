@@ -11,6 +11,8 @@
 #include <set>
 #include <memory>
 
+#include "triangle/util.h"
+
 template<typename ... Args>
 static std::string string_format(const std::string& format, Args ... args)
 {
@@ -49,11 +51,11 @@ struct imgLine
 struct imgText
 {
 	std::string text;
-	cv::Point org;
+	cv::Point orgi;
 	cv::Scalar color;
 
-	imgText(std::string text, cv::Point org, cv::Scalar color
-	) :text(text), org(org), color(color)
+	imgText(std::string text, cv::Point orgi, cv::Scalar color
+	) :text(text), orgi(orgi), color(color)
 	{}
 };
 
@@ -65,7 +67,7 @@ int n = 0;
 std::vector<cv::Point2f> points;
 std::vector<cv::Point2f> oriPoints;
 std::vector<imgText> labels;
-
+std::vector<cv::Point2f> all;
 static const std::string mainWindowName = "Affine with CUDA support";
 
 static bool checkCricle(cv::Point2f point)
@@ -97,7 +99,7 @@ static void draw_text(cv::Mat& img, cv::String text, cv::Point org, cv::Scalar c
 
 static void draw_text(cv::Mat& img, imgText label)
 {
-	draw_text(img, label.text, label.org, label.color);
+	draw_text(img, label.text, label.orgi, label.color);
 }
 
 // Draw delaunay triangles
@@ -133,20 +135,19 @@ void addPoint()
 
 	auto division = std::set<imgLine>();
 
-	for (size_t i = 0; i != points.size() - 1; ++i) {
-		division.emplace(imgLine(i, norm(points[i] - points[i + 1]), 1));
+	for (size_t i = 0; i != points.size() ; ++i) {
+		division.emplace(imgLine(i, norm(points[i] - points[(i + 1)%points.size()]), 1));
 	}
-
+	all = std::vector<cv::Point2f>();
 	for (size_t j = 0; j != 30; ++j) {
 		auto i = division.begin();
 		auto p = imgLine(i->index, i->length, i->div + 1);
 		division.erase(i);
 		division.emplace(p);
 	}
-	auto all = std::vector<cv::Point>();
 	for (auto curLine : division) {
 		auto st = points[curLine.index];
-		auto ed = points[curLine.index + 1];
+		auto ed = points[(curLine.index + 1)%points.size()];
 		int tot = curLine.div;
 		for (auto i = 1; i != tot; ++i) {
 			all.emplace_back((st * i + ed * (tot - i)) / tot);
@@ -155,26 +156,6 @@ void addPoint()
 	for (auto p : all) {
 		circle(tmp, p, 2, cv::Scalar(200, 255, 0, 0), CV_FILLED, CV_AA, 0);
 	}
-
-	auto size = tmp.size();
-	cv::Rect rect(0, 0, size.width, size.height);
-
-	cv::Subdiv2D subdiv(rect);
-	std::vector<cv::Point> pointsd;
-	pointsd.insert(pointsd.end(), all.begin(), all.end());
-	pointsd.insert(pointsd.end(), points.begin(), points.end());
-
-	for (auto it = pointsd.begin(); it != pointsd.end(); ++it)
-	{
-		subdiv.insert(*it);
-		// Show animation
-		auto img_copy = tmp.clone();
-		// Draw delaunay triangles
-		draw_delaunay(img_copy, subdiv, cv::Scalar(0, 0, 255, 0));
-		imshow(mainWindowName, img_copy);
-		cv::waitKey(500);
-	}
-
 	imshow(mainWindowName, tmp);
 }
 
@@ -252,6 +233,42 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 	imshow(mainWindowName, src);
 }
 
+int triangle_create()
+{
+	auto ctx = triangle_context_create();
+	auto in = new triangleio();
+	reset_triangleio(in);
+	triangle_context_options(ctx, "a2048q0");
+	in->numberofsegments = oriPoints.size();
+	in->numberofpoints = oriPoints.size();
+
+	in->segmentlist = static_cast<int *>(malloc(in->numberofsegments * 2 * sizeof(int)));
+	in->segmentmarkerlist = static_cast<int *>(malloc(in->numberofsegments * sizeof(int)));
+
+
+	in->pointlist = static_cast<REAL *>(malloc(in->numberofpoints * 2 * sizeof(REAL)));
+	in->pointmarkerlist = static_cast<int *>(malloc(in->numberofpoints  * sizeof(int)));
+
+	for(size_t i = 0;i!= in->numberofsegments;++i) {
+
+		in->pointlist[i*2] = oriPoints[i].x;
+		in->pointlist[i*2+1] = oriPoints[i].y;
+		in->pointmarkerlist[i] = 2;
+
+		in->segmentlist[i*2] = i;
+		in->segmentlist[i*2+1] = (i+1)%in->numberofsegments;
+
+		in->segmentmarkerlist[i] = 2;
+	}
+
+	//for (auto i = in->numberofsegments;i!=in->numberofpoints;++i) {
+	//	in->pointlist[i] = all[i - in->numberofsegments].x;
+	//	in->pointlist[i + 1] = all[i - in->numberofsegments].y;
+	//}
+	auto res = triangle_mesh_create(ctx, in);
+	return res;
+}
+
 void on_mouse(int event, int x, int y, int flags, void* ustc)
 {
 	cv::Point pt;
@@ -266,7 +283,7 @@ void on_mouse(int event, int x, int y, int flags, void* ustc)
 		y = bound(y, 0, src.rows - 1);
 		pt = cv::Point(x, y);
 
-		if (points.size() >= 3 || checkCricle(pt)) {
+		if (points.size() >= 3 && checkCricle(pt)) {
 			pt = points[0];
 			temp = string_format("%s", "");
 		}
@@ -300,11 +317,14 @@ void on_mouse(int event, int x, int y, int flags, void* ustc)
 
 		pt = cv::Point(x, y);
 
-		if (points.size() >= 3 || checkCricle(pt)) {
+		if (points.size() >= 3 && checkCricle(pt)) {
 			imshow(mainWindowName, src);
 			cv::setMouseCallback(mainWindowName, nullptr, nullptr);
-			cv::setMouseCallback(mainWindowName, dragPoint, nullptr);
+			//cv::setMouseCallback(mainWindowName, dragPoint, nullptr);
 			oriPoints.insert(oriPoints.cend(), points.begin(), points.end());
+			addPoint();
+			triangle_create();
+			
 		} else {
 			points.push_back(pt);
 			temp = string_format("%d (%d,%d)", n, pt.x, pt.y);
@@ -318,6 +338,8 @@ void on_mouse(int event, int x, int y, int flags, void* ustc)
 		}
 	}
 }
+
+
 
 #ifdef _MSC_VER
 #ifdef _DEBUG

@@ -272,31 +272,6 @@ void parsecommandline_legacy(int argc, char **argv, behavior_legacy *b)
 	strcat(b->areafilename, ".area");
 }
 
-void check_behavior(behavior *b, behavior_legacy *lb)
-{
-	if (b->fixedarea && b->maxarea <= 0.0) {
-		printf("ERROR: Maximum area must be greater than zero.\n");
-		exit(TRI_OPTIONS);
-	}
-
-	if (b->refine && lb->noiterationnum) {
-		printf("ERROR: You cannot use the -I switch when refining a triangulation.\n");
-		exit(TRI_OPTIONS);
-	}
-
-	/* Regular/weighted triangulations are incompatible with PSLGs and meshing. */
-	if (b->weighted && !lb->quiet && (b->poly || b->quality)) {
-		printf("WARNING:  weighted triangulations (-w, -W) are incompatible\n");
-		printf("  with PSLGs (-p) and meshing (-q, -a, -u).  Weights ignored.\n");
-	}
-
-	if (b->jettison && lb->nonodewritten && !lb->quiet) {
-		printf("WARNING:  -j and -N switches are somewhat incompatible.\n");
-		printf("  If any vertices are jettisoned, you will need the output\n");
-		printf("  .node file to reconstruct the new node indices.");
-	}
-}
-
 /*****************************************************************************/
 /*                                                                           */
 /*  statistics()   Print all sorts of cool facts.                            */
@@ -437,57 +412,6 @@ void print_statistics(context *ctx, int verbose)
 		}
 		printf("\n");
 	}
-}
-
-void reset_triangleio(triangleio *io)
-{
-	io->pointlist = (REAL *) NULL;
-	io->pointattributelist = (REAL *) NULL;
-	io->pointmarkerlist = (int *) NULL;
-	io->numberofpoints = 0;
-	io->numberofpointattributes = 0;
-
-	io->trianglelist = (int *) NULL;
-	io->triangleattributelist = (REAL *) NULL;
-	io->trianglearealist = (REAL *) NULL;
-	io->neighborlist = (int *) NULL;
-	io->numberoftriangles = 0;
-	io->numberofcorners = 0;
-	io->numberoftriangleattributes = 0;
-
-	io->segmentlist = (int *) NULL;
-	io->segmentmarkerlist = (int *) NULL;
-	io->numberofsegments = 0;
-
-	io->holelist = (REAL *) NULL;
-	io->numberofholes = 0;
-	io->regionlist = (REAL *) NULL;
-	io->numberofregions = 0;
-
-	io->edgelist = (int *) NULL;
-	io->edgemarkerlist = (int *) NULL;
-	io->numberofedges = 0;
-}
-
-void free_triangleio(triangleio *io)
-{
-	free(io->pointlist);
-	free(io->pointattributelist);
-	free(io->pointmarkerlist);
-
-	free(io->trianglelist);
-	free(io->triangleattributelist);
-	free(io->trianglearealist);
-	free(io->neighborlist);
-
-	free(io->segmentlist);
-	free(io->segmentmarkerlist);
-
-	free(io->holelist);
-	free(io->regionlist);
-
-	free(io->edgelist);
-	free(io->edgemarkerlist);
 }
 
 void check_mesh(context *ctx)
