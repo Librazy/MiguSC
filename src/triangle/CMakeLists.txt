@@ -22,3 +22,4 @@ add_library(triangle STATIC
  triangle_helper.c)
  
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+add_definitions(-DNO_FILE_IO)

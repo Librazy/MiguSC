@@ -139,6 +139,10 @@ extern "C" {
 	 */
 	EXPORT void triangle_free(VOID *memptr);
 
+	EXPORT void reset_triangleio(triangleio *io);
+
+	EXPORT void free_triangleio(triangleio *io);
+
 #ifndef NO_FILE_IO
 	/**
 	 * Write node file.
@@ -226,10 +230,6 @@ extern "C" {
 	 * @return Integer status code.
 	 */
 	EXPORT int triangle_read_area(const char* filename, triangleio *io);
-
-	EXPORT void reset_triangleio(triangleio *io);
-
-	EXPORT void free_triangleio(triangleio *io);
 
 #endif /* NO_FILE_IO */
 

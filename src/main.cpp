@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "triangle/util.h"
+#include "triangle/triangle_internal.h"
 
 template<typename ... Args>
 static std::string string_format(const std::string& format, Args ... args)
@@ -75,16 +76,14 @@ static bool checkCricle(cv::Point2f point)
 	return !points.empty() && norm(point - points[0]) < 30;
 }
 
-// Draw a single point
 static void draw_point(cv::Mat& img, cv::Point fp, cv::Scalar color)
 {
 	circle(img, fp, 2, color, CV_FILLED, CV_AA, 0);
 }
 
-// Draw a single point
 static void draw_line(cv::Mat& img, cv::Point p1, cv::Point p2, cv::Scalar color = cv::Scalar(0, 0, 0))
 {
-	line(src, p1, p2,
+	line(img, p1, p2,
 		color, 2, cv::LineTypes::LINE_AA);
 }
 
@@ -238,7 +237,7 @@ int triangle_create()
 	auto ctx = triangle_context_create();
 	auto in = new triangleio();
 	reset_triangleio(in);
-	triangle_context_options(ctx, "a2048q0");
+	triangle_context_options(ctx, "pq10a1024");
 	in->numberofsegments = oriPoints.size();
 	in->numberofpoints = oriPoints.size();
 
@@ -247,25 +246,111 @@ int triangle_create()
 
 
 	in->pointlist = static_cast<REAL *>(malloc(in->numberofpoints * 2 * sizeof(REAL)));
-	in->pointmarkerlist = static_cast<int *>(malloc(in->numberofpoints  * sizeof(int)));
+	in->pointmarkerlist = static_cast<int *>(malloc(in->numberofpoints * sizeof(int)));
 
-	for(size_t i = 0;i!= in->numberofsegments;++i) {
+	for (size_t i = 0; i != in->numberofsegments; ++i) {
 
-		in->pointlist[i*2] = oriPoints[i].x;
-		in->pointlist[i*2+1] = oriPoints[i].y;
+		in->pointlist[i * 2] = oriPoints[i].x;
+		in->pointlist[i * 2 + 1] = oriPoints[i].y;
 		in->pointmarkerlist[i] = 2;
 
-		in->segmentlist[i*2] = i;
-		in->segmentlist[i*2+1] = (i+1)%in->numberofsegments;
+		in->segmentlist[i * 2] = i + 1;
+		in->segmentlist[i * 2 + 1] = (i + 1) % in->numberofsegments + 1;
 
 		in->segmentmarkerlist[i] = 2;
 	}
+	auto vertexsFin = std::vector<cv::Point2d>();
+	auto segmentsFin = std::vector<cv::Point>();
+	auto trisegsFin = std::vector<cv::Point>();
 
-	//for (auto i = in->numberofsegments;i!=in->numberofpoints;++i) {
-	//	in->pointlist[i] = all[i - in->numberofsegments].x;
-	//	in->pointlist[i + 1] = all[i - in->numberofsegments].y;
-	//}
 	auto res = triangle_mesh_create(ctx, in);
+
+	if (!res) {
+		struct osub subsegloop;
+		vertex endpoint1, endpoint2;
+		long subsegnumber;
+
+		auto m = ctx->m;
+		auto b = ctx->b;
+
+		vertex vertexloop;
+		int vertexnumber;
+
+		dst = ori.clone();
+
+		traversalinit(&m->vertices);
+		vertexnumber = 0;
+		vertexloop = vertextraverse(m);
+		while (vertexloop != static_cast<vertex>(nullptr)) {
+			if (!b->jettison || vertextype(vertexloop) != UNDEADVERTEX) {
+				vertexsFin.emplace_back(cv::Point2d{ vertexloop[0], vertexloop[1] });
+				setvertexmark(vertexloop, vertexnumber);
+				vertexnumber++;
+			}
+			vertexloop = vertextraverse(m);
+		}
+
+		for (auto p : vertexsFin) {
+			draw_point(dst, p , cv::Scalar(0, 200, 0, 0));
+		}
+
+		traversalinit(&m->subsegs);
+		subsegloop.ss = subsegtraverse(m);
+		subsegloop.ssorient = 0;
+		subsegnumber = b->firstnumber;
+		while (subsegloop.ss != static_cast<subseg *>(nullptr)) {
+			sorg(subsegloop, endpoint1);
+			sdest(subsegloop, endpoint2);
+			segmentsFin.emplace_back(cv::Point{ vertexmark(endpoint1), vertexmark(endpoint2) });
+			subsegloop.ss = subsegtraverse(m);
+			subsegnumber++;
+		}
+		
+		struct otri triangleloop;
+		vertex p1, p2, p3;
+		long elementnumber;
+
+		int plus1mod3[3] = { 1, 2, 0 };
+		int minus1mod3[3] = { 2, 0, 1 };
+
+		traversalinit(&m->triangles);
+		triangleloop.tri = triangletraverse(m);
+		triangleloop.orient = 0;
+		elementnumber = b->firstnumber;
+		while (triangleloop.tri != static_cast<triangle *>(nullptr)) {
+			org(triangleloop, p1);
+			dest(triangleloop, p2);
+			apex(triangleloop, p3);
+			trisegsFin.emplace_back(cv::Point{ vertexmark(p1), vertexmark(p2) });
+			trisegsFin.emplace_back(cv::Point{ vertexmark(p2), vertexmark(p3) });
+			trisegsFin.emplace_back(cv::Point{ vertexmark(p3), vertexmark(p1) });
+
+			triangleloop.tri = triangletraverse(m);
+			elementnumber++;
+		}
+		if (trisegsFin.size() >= 1) {
+			for (auto se : trisegsFin) {
+				line(dst, vertexsFin[se.x] , vertexsFin[se.y], cv::Scalar(0, 255, 255), 1, CV_AA, 0);
+			}
+		}
+		if (segmentsFin.size() >= 1) {
+			for (auto se : segmentsFin) {
+				line(dst, vertexsFin[se.x] , vertexsFin[se.y] , cv::Scalar(0,0,255), 1, CV_AA, 0);
+			}
+		}
+		cv::namedWindow("x", 1);
+		imshow("x", dst);
+
+		free(in->segmentlist);
+		free(in->segmentmarkerlist);
+
+
+		free(in->pointlist);
+		free(in->pointmarkerlist);
+
+		delete in;
+	}
+
 	return res;
 }
 
@@ -322,9 +407,8 @@ void on_mouse(int event, int x, int y, int flags, void* ustc)
 			cv::setMouseCallback(mainWindowName, nullptr, nullptr);
 			//cv::setMouseCallback(mainWindowName, dragPoint, nullptr);
 			oriPoints.insert(oriPoints.cend(), points.begin(), points.end());
-			addPoint();
+			//addPoint();
 			triangle_create();
-			
 		} else {
 			points.push_back(pt);
 			temp = string_format("%d (%d,%d)", n, pt.x, pt.y);
