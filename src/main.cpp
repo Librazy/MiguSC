@@ -153,7 +153,7 @@ void addPoint()
 		circle(tmp, p, 2, cv::Scalar(200, 255, 0, 0), CV_FILLED, CV_AA, 0);
 	}
 
-	cv::Size size = tmp.size();
+	auto size = tmp.size();
 	cv::Rect rect(0, 0, size.width, size.height);
 
 	cv::Subdiv2D subdiv(rect);
@@ -165,7 +165,7 @@ void addPoint()
 	{
 		subdiv.insert(*it);
 		// Show animation
-		cv::Mat img_copy = tmp.clone();
+		auto img_copy = tmp.clone();
 		// Draw delaunay triangles
 		draw_delaunay(img_copy, subdiv, cv::Scalar(0, 0, 255, 0));
 		imshow("src", img_copy);
@@ -203,46 +203,43 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 		break;
 	default:break;
 	}
-	for (auto p : points) {
-		draw_point(src, p, cv::Scalar(255, 200, 0, 0));
-	}
-	if (points.size() > 1) {
-		for (size_t i = 0; i != points.size(); ++i)
-		{
-			draw_line(src, points[i], points[(i + 1) % points.size()]);
-		}
-	}
-	imshow("src", src);
-	auto affMatOri = cv::InputArray(oriPoints).getMat();
-	auto affMatDst = cv::InputArray(points).getMat();
+
 	auto size = cv::Size(src.cols, src.rows);
 	cv::Mat dst2;
 	dst = ori.clone();
-	for (auto p : oriPoints) {
-		draw_point(dst, p, cv::Scalar(255, 200, 0, 0));
-	}
-	if (oriPoints.size() > 1) {
-		for (size_t i = 0; i != oriPoints.size(); ++i)
-		{
-			draw_line(dst, oriPoints[i], oriPoints[(i + 1) % oriPoints.size()]);
-		}
-	}
+
 	cv::Mat black(src.rows, src.cols, src.type(), cv::Scalar::all(0));
 	cv::Mat mask(src.rows, src.cols, CV_8UC1, cv::Scalar(0));
 	std::vector<std::vector<cv::Point> >  co_ordinates;
 	co_ordinates.push_back(std::vector<cv::Point>{
 		oriPoints[0],
-		oriPoints[1],
-		oriPoints[2]
+			oriPoints[1],
+			oriPoints[2]
+	});
+
+	cv::Mat mask2(src.rows, src.cols, CV_8UC1, cv::Scalar(0));
+	std::vector<std::vector<cv::Point> >  co_ordinates2;
+	co_ordinates2.push_back(std::vector<cv::Point>{
+			points[0],
+			points[1],
+			points[2]
 	});
 
 	drawContours(mask, co_ordinates, 0, cv::Scalar(255), CV_FILLED, 8);
+	drawContours(mask2, co_ordinates2, 0, cv::Scalar(255), CV_FILLED, 8);
+
 	dst = black.clone();
 	ori.copyTo(dst,mask);
-	imshow("dst", dst);
 	auto affTrans = getAffineTransform(oriPoints, points);
 	warpAffine(dst, dst2, affTrans, size, cv::InterpolationFlags::INTER_AREA);
-	imshow("dst2", dst2);
+
+	src = ori.clone();
+	dst2.copyTo(src,mask2);
+
+	for (auto p : points) {
+		draw_point(src, p, cv::Scalar(255, 200, 0, 0));
+	}
+	imshow("src", src);
 }
 
 void on_mouse(int event, int x, int y, int flags, void* ustc)
@@ -322,8 +319,6 @@ int WinMain(HINSTANCE hInstance,
 #endif // !DEBUG
 {
 	cv::namedWindow("src", 1);
-	cv::namedWindow("dst", 1);
-	cv::namedWindow("dst2", 1);
 
 	ori = cv::imread("qwe.jpg");
 	src = dst = ori.clone();
