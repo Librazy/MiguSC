@@ -29,17 +29,17 @@ cv::Scalar getInverseColor(cv::Scalar c)
 	return cv::Scalar(255, 255, 255, 0) - c;
 }
 
-struct imgline
+struct imgLine
 {
 	size_t index;
 	double length;
 	size_t div;
 
-	imgline(size_t index, double length, size_t div
+	imgLine(size_t index, double length, size_t div
 	) :index(index), length(length), div(div)
 	{}
 
-	bool operator<(imgline const& a) const noexcept
+	bool operator<(imgLine const& a) const noexcept
 	{
 		return length / div > a.length / a.div;
 	}
@@ -61,10 +61,11 @@ cv::Mat dst;
 cv::Mat ori;
 int n = 0;
 
-std::vector<cv::Point> points;
+std::vector<cv::Point2f> points;
+std::vector<cv::Point2f> oriPoints;
 std::vector<imgText> labels;
 
-bool checkCricle(cv::Point point)
+bool checkCricle(cv::Point2f point)
 {
 	return !points.empty() && norm(point - points[0]) < 30;
 }
@@ -127,15 +128,15 @@ void addPoint()
 {
 	auto tmp = src.clone();
 
-	auto division = std::set<imgline>();
+	auto division = std::set<imgLine>();
 
 	for (size_t i = 0; i != points.size() - 1; ++i) {
-		division.emplace(imgline(i, norm(points[i] - points[i + 1]), 1));
+		division.emplace(imgLine(i, norm(points[i] - points[i + 1]), 1));
 	}
 
 	for (size_t j = 0; j != 30; ++j) {
 		auto i = division.begin();
-		auto p = imgline(i->index, i->length, i->div + 1);
+		auto p = imgLine(i->index, i->length, i->div + 1);
 		division.erase(i);
 		division.emplace(p);
 	}
@@ -176,16 +177,14 @@ void addPoint()
 
 void dragPoint(int event, int x, int y, int flags, void* ustc)
 {
-	src = dst.clone();
+	src = ori.clone();
 	static auto isDragging = false;
 	static size_t m = 0;
-	auto pt = cv::Point(x, y);
+	auto pt = cv::Point2f(x, y);
 	auto min = norm(pt - points[0]);
 	switch (event) {
 	case CV_EVENT_MOUSEMOVE:
 		if(isDragging) {
-			printf("%llu : (%d , %d )\n", m, points[m].x, points[m].y);
-			printf("Pointer: (%d , %d )\n", pt.x, pt.y);
 			points[m] = pt;
 		}
 		break;
@@ -206,14 +205,32 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 	}
 	for (auto p : points) {
 		draw_point(src, p, cv::Scalar(255, 200, 0, 0));
-		if (points.size() > 1) {
-			for (size_t i = 0; i != points.size(); ++i)
-			{
-				draw_line(src, points[i], points[ (i + 1) % points.size()]);
-			}
+	}
+	if (points.size() > 1) {
+		for (size_t i = 0; i != points.size(); ++i)
+		{
+			draw_line(src, points[i], points[(i + 1) % points.size()]);
 		}
 	}
 	imshow("src", src);
+	auto affMatOri = cv::InputArray(oriPoints).getMat();
+	auto affMatDst = cv::InputArray(points).getMat();
+	auto size = cv::Size(src.cols, src.rows);
+	cv::Mat dst2;
+	dst = ori.clone();
+	for (auto p : oriPoints) {
+		draw_point(dst, p, cv::Scalar(255, 200, 0, 0));
+	}
+	if (oriPoints.size() > 1) {
+		for (size_t i = 0; i != oriPoints.size(); ++i)
+		{
+			draw_line(dst, oriPoints[i], oriPoints[(i + 1) % oriPoints.size()]);
+		}
+	}
+	imshow("dst", dst);
+	auto affTrans = getAffineTransform(oriPoints, points);
+	warpAffine(dst, dst2, affTrans, size, cv::InterpolationFlags::INTER_AREA);
+	imshow("dst2", dst2);
 }
 
 void on_mouse(int event, int x, int y, int flags, void* ustc)
@@ -268,7 +285,7 @@ void on_mouse(int event, int x, int y, int flags, void* ustc)
 			imshow("src", src);
 			cv::setMouseCallback("src", nullptr, nullptr);
 			cv::setMouseCallback("src", dragPoint, nullptr);
-
+			oriPoints.insert(oriPoints.cend(), points.begin(), points.end());
 		} else {
 			points.push_back(pt);
 			temp = string_format("%d (%d,%d)", n, pt.x, pt.y);
@@ -293,6 +310,8 @@ int WinMain(HINSTANCE hInstance,
 #endif // !DEBUG
 {
 	cv::namedWindow("src", 1);
+	cv::namedWindow("dst", 1);
+	cv::namedWindow("dst2", 1);
 
 	ori = cv::imread("qwe.jpg");
 	src = dst = ori.clone();
