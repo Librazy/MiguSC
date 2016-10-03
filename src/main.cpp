@@ -7,7 +7,17 @@
 
 #include <vector>
 #include <set>
+#include <memory>
 #include <functional>
+
+template<typename ... Args>
+std::string string_format(const std::string& format, Args ... args)
+{
+	auto size = snprintf(nullptr, 0, format.c_str(), args ...) + 1; // Extra space for '\0'
+	std::unique_ptr<char[]> buf(new char[size]);
+	snprintf(buf.get(), size, format.c_str(), args ...);
+	return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+}
 
 int bound(int i, int a, int b)
 {
@@ -17,16 +27,6 @@ int bound(int i, int a, int b)
 cv::Scalar getInverseColor(cv::Scalar c)
 {
 	return cv::Scalar(255, 255, 255, 0) - c;
-}
-
-cv::Mat src;
-cv::Mat dst;
-int n = 0;
-std::vector<cv::Point> points;
-
-bool checkCricle(cv::Point point)
-{
-	return norm(point - points[0]) < 30;
 }
 
 struct imgline
@@ -44,6 +44,84 @@ struct imgline
 		return length / div > a.length / a.div;
 	}
 };
+
+struct imgText
+{
+	std::string text;
+	cv::Point org;
+	cv::Scalar color;
+
+	imgText(std::string text, cv::Point org, cv::Scalar color
+	) :text(text), org(org), color(color)
+	{}
+};
+
+cv::Mat src;
+cv::Mat dst;
+cv::Mat ori;
+int n = 0;
+
+std::vector<cv::Point> points;
+std::vector<imgText> labels;
+
+bool checkCricle(cv::Point point)
+{
+	return !points.empty() && norm(point - points[0]) < 30;
+}
+
+// Draw a single point
+static void draw_point(cv::Mat& img, cv::Point fp, cv::Scalar color)
+{
+	circle(img, fp, 2, color, CV_FILLED, CV_AA, 0);
+}
+
+// Draw a single point
+static void draw_line(cv::Mat& img, cv::Point p1, cv::Point p2, cv::Scalar color = cv::Scalar(0, 0, 0))
+{
+	line(src, p1, p2,
+		color, 2, cv::LineTypes::LINE_AA);
+}
+
+static void draw_text(cv::Mat& img, cv::String text, cv::Point org, cv::Scalar color = cv::Scalar(0, 0, 0))
+{
+	int baseline;
+	auto size = getTextSize(text, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.5, 1, &baseline);
+	cv::Point tmp_pt = { bound(org.x, 0, src.cols - size.width),
+					bound(org.y, size.height + baseline, src.rows - 1 - baseline) };
+	putText(src, text, tmp_pt, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.5, color, 1, cv::LineTypes::LINE_AA);
+}
+
+static void draw_text(cv::Mat& img, imgText label)
+{
+	draw_text(img, label.text, label.org, label.color);
+}
+
+// Draw delaunay triangles
+static void draw_delaunay(cv::Mat& img, cv::Subdiv2D& subdiv, cv::Scalar delaunay_color)
+{
+
+	std::vector<cv::Vec6f> triangleList;
+	subdiv.getTriangleList(triangleList);
+	std::vector<cv::Point> pt(3);
+	cv::Size size = img.size();
+	cv::Rect rect(0, 0, size.width, size.height);
+
+	for (size_t i = 0; i < triangleList.size(); i++)
+	{
+		cv::Vec6f t = triangleList[i];
+		pt[0] = cv::Point(cvRound(t[0]), cvRound(t[1]));
+		pt[1] = cv::Point(cvRound(t[2]), cvRound(t[3]));
+		pt[2] = cv::Point(cvRound(t[4]), cvRound(t[5]));
+
+		// Draw rectangles completely inside the image.
+		if (rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2]))
+		{
+			line(img, pt[0], pt[1], delaunay_color, 1, CV_AA, 0);
+			line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
+			line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
+		}
+	}
+}
 
 void addPoint()
 {
@@ -73,19 +151,78 @@ void addPoint()
 	for (auto p : all) {
 		circle(tmp, p, 2, cv::Scalar(200, 255, 0, 0), CV_FILLED, CV_AA, 0);
 	}
+
+	cv::Size size = tmp.size();
+	cv::Rect rect(0, 0, size.width, size.height);
+
+	cv::Subdiv2D subdiv(rect);
+	std::vector<cv::Point> pointsd;
+	pointsd.insert(pointsd.end(), all.begin(), all.end());
+	pointsd.insert(pointsd.end(), points.begin(), points.end());
+
+	for (auto it = pointsd.begin(); it != pointsd.end(); ++it)
+	{
+		subdiv.insert(*it);
+		// Show animation
+		cv::Mat img_copy = tmp.clone();
+		// Draw delaunay triangles
+		draw_delaunay(img_copy, subdiv, cv::Scalar(0, 0, 255, 0));
+		imshow("src", img_copy);
+		cv::waitKey(500);
+	}
+
 	imshow("src", tmp);
+}
+
+void dragPoint(int event, int x, int y, int flags, void* ustc)
+{
+	src = dst.clone();
+	static auto isDragging = false;
+	static size_t m = 0;
+	auto pt = cv::Point(x, y);
+	auto min = norm(pt - points[0]);
+	switch (event) {
+	case CV_EVENT_MOUSEMOVE:
+		if(isDragging) {
+			printf("%llu : (%d , %d )\n", m, points[m].x, points[m].y);
+			printf("Pointer: (%d , %d )\n", pt.x, pt.y);
+			points[m] = pt;
+		}
+		break;
+	case CV_EVENT_LBUTTONDOWN:
+		for (size_t i = 0;i != points.size();++i)
+		{
+			if(min >= norm(pt - points[i] )) {
+				m = i;
+				min = norm(pt - points[m]);
+			}
+		}
+		isDragging = true;
+		break;
+	case CV_EVENT_LBUTTONUP:
+		isDragging = false;
+		break;
+	default:break;
+	}
+	for (auto p : points) {
+		draw_point(src, p, cv::Scalar(255, 200, 0, 0));
+		if (points.size() > 1) {
+			for (size_t i = 0; i != points.size(); ++i)
+			{
+				draw_line(src, points[i], points[ (i + 1) % points.size()]);
+			}
+		}
+	}
+	imshow("src", src);
 }
 
 void on_mouse(int event, int x, int y, int flags, void* ustc)
 {
 	cv::Point pt;
-	cv::Point tmp_pt = { -1,-1 };
-	char temp[16];
-	int baseline;
+	std::string temp;
 
 	auto clrPoint = cv::Scalar(255, 0, 0, 0);
 	auto clrText = cv::Scalar(255, 200, 0, 0);
-	auto clrTextCur = clrText;
 	if (event == CV_EVENT_MOUSEMOVE) {
 		src = dst.clone();
 
@@ -93,78 +230,59 @@ void on_mouse(int event, int x, int y, int flags, void* ustc)
 		y = bound(y, 0, src.rows - 1);
 		pt = cv::Point(x, y);
 
-		if (points.size() >= 3 && checkCricle(pt)) {
+		if (points.size() >= 3 || checkCricle(pt)) {
 			pt = points[0];
-			sprintf(temp, "%s", "");
+			temp = string_format("%s", "");
 		}
 		else {
-			sprintf(temp, "%d (%d,%d)", n + 1, pt.x, pt.y);
+			temp = string_format("%d (%d,%d)", n + 1, pt.x, pt.y);
 		}
 
-		circle(src, pt, 2, clrPoint, CV_FILLED, CV_AA, 0);
+		draw_text(src, temp, pt, getInverseColor(clrText));
+		draw_point(src, pt, getInverseColor(clrPoint));
 
-		if (points.size() >= 1)
-			line(src, points[points.size() - 1], pt,
-				cv::Scalar(0, 0, 0), 2, cv::LineTypes::LINE_AA);
+		for (auto p : points) {
+			draw_point(src, p, clrPoint);
+		}
 
+		for (auto l : labels) {
+			draw_text(src, l);
+		}
 
-		clrTextCur = clrText;
-	}
-	else if (event == CV_EVENT_LBUTTONDOWN) {
-		src = dst.clone();
+		if (points.size() > 1) {
+			for (size_t i = 1; i != points.size(); ++i)
+			{
+				draw_line(src, points[i - 1], points[i]);
+			}
+		}
+
+		if (points.size() >= 1) {
+			draw_line(src, points[points.size() - 1], pt);
+		}
+		imshow("src", src);
+	}else if (event == CV_EVENT_LBUTTONDOWN) {
 
 		pt = cv::Point(x, y);
 
-		if (points.size() >= 3 && checkCricle(pt)) {
-			pt = points[0];
-		}
-
-		points.push_back(pt);
-		n++;
-		circle(src, pt, 2, clrPoint, CV_FILLED, CV_AA, 0);
-
-		if (points.size() >= 2)
-			line(src, points[points.size() - 2], points[points.size() - 1],
-				cv::Scalar(0, 0, 0), 2, cv::LineTypes::LINE_AA);
-
-		sprintf(temp, "%d (%d,%d)", n, pt.x, pt.y);
-		clrTextCur = clrText;
-
-
-		if (points.size() >= 3 && checkCricle(pt)) {
+		if (points.size() >= 3 || checkCricle(pt)) {
 			imshow("src", src);
 			cv::setMouseCallback("src", nullptr, nullptr);
-			addPoint();
-			return;
+			cv::setMouseCallback("src", dragPoint, nullptr);
+
+		} else {
+			points.push_back(pt);
+			temp = string_format("%d (%d,%d)", n, pt.x, pt.y);
+			labels.emplace_back(imgText(temp, pt, clrText));
+			n++;
 		}
-
-		auto size = getTextSize(temp, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.5, 1, &baseline);
-		tmp_pt.x = bound(pt.x, 0, src.cols - size.width);
-		tmp_pt.y = bound(pt.y, size.height + baseline, src.rows - 1 - baseline);
-		putText(src, temp, tmp_pt, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.5, clrTextCur, 1, cv::LineTypes::LINE_AA);
-
-		dst = src.clone();
-	}
-	else if (event == CV_EVENT_RBUTTONDOWN) {
+	}else if (event == CV_EVENT_RBUTTONDOWN) {
 		if (!points.empty()) {
-			pt = points.back();
 			points.pop_back();
-			circle(src, pt, 2, getInverseColor(clrPoint), CV_FILLED, CV_AA, 0);
-
-			sprintf(temp, "%d (%d,%d)", n, pt.x, pt.y);
-			--n;
-
-			clrTextCur = getInverseColor(clrText);
-			dst = src.clone();
+			labels.pop_back();
 		}
 	}
-	auto size = getTextSize(temp, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.5, 1, &baseline);
-	tmp_pt.x = bound(pt.x, 0, src.cols - size.width);
-	tmp_pt.y = bound(pt.y, size.height + baseline, src.rows - 1 - baseline);
-	putText(src, temp, tmp_pt, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.5, clrTextCur, 1, cv::LineTypes::LINE_AA);
-
-	imshow("src", src);
 }
+
 #ifdef _DEBUG
 int main()
 #else
@@ -176,8 +294,9 @@ int WinMain(HINSTANCE hInstance,
 {
 	cv::namedWindow("src", 1);
 
-	src = cv::imread("qwe.jpg");
-	dst = src.clone();
+	ori = cv::imread("qwe.jpg");
+	src = dst = ori.clone();
+
 	imshow("src", src);
 	cv::setMouseCallback("src", on_mouse, nullptr);
 	cvWaitKey(0);
