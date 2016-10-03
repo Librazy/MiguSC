@@ -8,10 +8,9 @@
 #include <vector>
 #include <set>
 #include <memory>
-#include <functional>
 
 template<typename ... Args>
-std::string string_format(const std::string& format, Args ... args)
+static std::string string_format(const std::string& format, Args ... args)
 {
 	auto size = snprintf(nullptr, 0, format.c_str(), args ...) + 1; // Extra space for '\0'
 	std::unique_ptr<char[]> buf(new char[size]);
@@ -65,7 +64,7 @@ std::vector<cv::Point2f> points;
 std::vector<cv::Point2f> oriPoints;
 std::vector<imgText> labels;
 
-bool checkCricle(cv::Point2f point)
+static bool checkCricle(cv::Point2f point)
 {
 	return !points.empty() && norm(point - points[0]) < 30;
 }
@@ -227,6 +226,13 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 
 	drawContours(mask, co_ordinates, 0, cv::Scalar(255), CV_FILLED, 8);
 	drawContours(mask2, co_ordinates2, 0, cv::Scalar(255), CV_FILLED, 8);
+
+	cv::Mat Kernel(cv::Size(3, 3), CV_8UC1);
+	Kernel.setTo(cv::Scalar(1));
+	dilate(mask, mask, Kernel, cv::Point(-1, -1), 3);
+
+	cv::namedWindow("x", 1);
+	imshow("x", mask);
 
 	dst = black.clone();
 	ori.copyTo(dst,mask);
