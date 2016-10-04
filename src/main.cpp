@@ -8,11 +8,18 @@
 #include <opencv2/imgproc.hpp>
 
 #include <vector>
-#include <set>
 #include <memory>
 
 #include "triangle/util.h"
 #include "triangle/triangle_internal.h"
+
+#include <OpenMesh/Core/IO/MeshIO.hh>
+#include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
+
+
+using OpenMeshT = OpenMesh::DefaultTraits;
+
+using TriMs = OpenMesh::TriMesh_ArrayKernelT<>;
 
 template<typename ... Args>
 static std::string string_format(const std::string& format, Args ... args)
@@ -135,6 +142,19 @@ static int triangle_create()
 	auto res = triangle_mesh_create(ctx, in);
 
 	if (!res) {
+		auto mesh = TriMs();
+		auto meshVertexs = std::vector<OpenMesh::VertexHandle>();
+		auto meshFases = std::vector<OpenMesh::FaceHandle>();
+
+		mesh.request_face_normals();
+		mesh.request_face_status();
+		mesh.request_vertex_normals();
+		mesh.request_vertex_texcoords2D();
+		mesh.request_vertex_status();
+
+		mesh.request_vertex_colors();
+		mesh.request_edge_status();
+
 		struct osub subsegloop;
 		vertex endpoint1, endpoint2;
 		long subsegnumber;
@@ -153,6 +173,9 @@ static int triangle_create()
 		while (vertexloop != static_cast<vertex>(nullptr)) {
 			if (!b->jettison || vertextype(vertexloop) != UNDEADVERTEX) {
 				vertexsFin.emplace_back(cv::Point2d{ vertexloop[0], vertexloop[1] });
+
+				meshVertexs.emplace_back(mesh.add_vertex(OpenMeshT::Point(vertexloop[0], vertexloop[1], 0)));
+				
 				setvertexmark(vertexloop, vertexnumber);
 				vertexnumber++;
 			}
@@ -194,6 +217,11 @@ static int triangle_create()
 			trisegsFin.emplace_back(cv::Point{ vertexmark(p2), vertexmark(p3) });
 			trisegsFin.emplace_back(cv::Point{ vertexmark(p3), vertexmark(p1) });
 
+			auto face_vhandles = std::vector<OpenMesh::VertexHandle>();
+			face_vhandles.emplace_back(meshVertexs[vertexmark(p1)]);
+			face_vhandles.emplace_back(meshVertexs[vertexmark(p2)]);
+			face_vhandles.emplace_back(meshVertexs[vertexmark(p3)]);
+			mesh.add_face(face_vhandles);
 			triangleloop.tri = triangletraverse(m);
 			elementnumber++;
 		}
@@ -207,6 +235,7 @@ static int triangle_create()
 				line(dst, vertexsFin[se.x] , vertexsFin[se.y] , cv::Scalar(0,0,255), 1, CV_AA, 0);
 			}
 		}
+
 		cv::namedWindow("x", 1);
 		imshow("x", dst);
 
