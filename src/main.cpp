@@ -2,111 +2,20 @@
 #include <windows.h>
 #endif
 
-#include <opencv2/core.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
-
-#include <vector>
-#include <memory>
-
+#include "util.h"
 #include "triangle/util.h"
-#include "triangle/triangle_internal.h"
 
-#include <OpenMesh/Core/IO/MeshIO.hh>
-#include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
-
-
-using OpenMeshT = OpenMesh::DefaultTraits;
-
-using TriMs = OpenMesh::TriMesh_ArrayKernelT<>;
-
-template<typename ... Args>
-static std::string string_format(const std::string& format, Args ... args)
-{
-	auto size = snprintf(nullptr, 0, format.c_str(), args ...) + 1; // Extra space for '\0'
-	std::unique_ptr<char[]> buf(new char[size]);
-	snprintf(buf.get(), size, format.c_str(), args ...);
-	return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
-}
-
-static int bound(int i, int a, int b)
-{
-	return std::min(std::max(i, std::min(a, b)), std::max(a, b));
-}
-
-static cv::Scalar getInverseColor(cv::Scalar c)
-{
-	return cv::Scalar(255, 255, 255, 0) - c;
-}
-
-struct imgLine
-{
-	size_t index;
-	double length;
-	size_t div;
-
-	imgLine(size_t index, double length, size_t div
-	) :index(index), length(length), div(div)
-	{}
-
-	bool operator<(imgLine const& a) const noexcept
-	{
-		return length / div > a.length / a.div;
-	}
-};
-
-struct imgText
-{
-	std::string text;
-	cv::Point orgi;
-	cv::Scalar color;
-
-	imgText(std::string text, cv::Point orgi, cv::Scalar color
-	) :text(text), orgi(orgi), color(color)
-	{}
-};
+#include <opencv2/imgcodecs.hpp>
+#include <vector>
 
 cv::Mat src;
 cv::Mat dst;
 cv::Mat ori;
-int n = 0;
 
-std::vector<cv::Point2f> points;
-std::vector<cv::Point2f> oriPoints;
+std::vector<cv::Point2d> points;
+std::vector<cv::Point2d> oriPoints;
 std::vector<imgText> labels;
 
-static const std::string mainWindowName = "Affine with CUDA support";
-
-static bool if_in_range(cv::Point2f point)
-{
-	return !points.empty() && norm(point - points[0]) < 30;
-}
-
-static void draw_point(cv::Mat& img, cv::Point fp, cv::Scalar color, int rad = 2)
-{
-	circle(img, fp, rad, color, CV_FILLED, CV_AA, 0);
-}
-
-static void draw_line(cv::Mat& img, cv::Point p1, cv::Point p2, cv::Scalar color = cv::Scalar(0, 0, 0))
-{
-	line(img, p1, p2,
-		color, 2, cv::LineTypes::LINE_AA);
-}
-
-static void draw_text(cv::Mat& img, cv::String text, cv::Point org, cv::Scalar color = cv::Scalar(0, 0, 0))
-{
-	int baseline;
-	auto size = getTextSize(text, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.5, 1, &baseline);
-	cv::Point tmp_pt = { bound(org.x, 0, src.cols - size.width),
-					bound(org.y, size.height + baseline, src.rows - 1 - baseline) };
-	putText(src, text, tmp_pt, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.5, color, 1, cv::LineTypes::LINE_AA);
-}
-
-static void draw_text(cv::Mat& img, imgText label)
-{
-	draw_text(img, label.text, label.orgi, label.color);
-}
 //
 ////邻接顶点的余切权重计算
 //void CotangentWeights(TriMs*TMesh, int vIndex, std::vector<double>&vweight, double &WeightSum, bool bNormalize)//计算一阶邻近点的各自cottan权重
@@ -258,8 +167,7 @@ double cot_weight(TriMs& mesh, OpenMesh::VertexHandle p1, OpenMesh::VertexHandle
 	return accumulate(ws.begin(), ws.end(), 0.0);
 }
 
-
-cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1)
+cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1, std::vector<Tpt_d>& out_triplet)
 {
 	auto ns = nerghbor(mesh, p1);
 	auto mp1 = mesh.point(p1);
@@ -268,6 +176,7 @@ cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1)
 	auto nweigs = std::vector<double>();
 	auto ndetas = std::vector<cv::Point2d>();
 
+	out_triplet.emplace_back(Tpt_d(p1.idx(), p1.idx(), 1));
 
 	for(auto n : ns) {
 		auto p = mesh.point(n);
@@ -277,6 +186,11 @@ cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1)
 
 	auto s = accumulate(nweigs.begin(), nweigs.end(), 0.0);
 	auto x = cv::Point2d(0.0, 0.0);
+
+	for (size_t i = 0; i != ncords.size();++i) {
+		out_triplet.emplace_back(Tpt_d(ns[i].idx(), p1.idx(), -nweigs.back()/s));
+	}
+
 	for (size_t i = 0; i != ncords.size();++i) {
 		x += nweigs[i] * ncords[i] / s;
 	}
@@ -285,7 +199,6 @@ cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1)
 	//for (size_t i = 0; i != ncords.size(); ++i) {
 	//	x += ncords[i] / static_cast<double>(ncords.size());
 	//}
-
 	return cp1 - x;
 
 }
@@ -295,7 +208,7 @@ static int triangle_create()
 	auto ctx = triangle_context_create();
 	auto in = new triangleio();
 	reset_triangleio(in);
-	triangle_context_options(ctx, "pq15a1024");
+	triangle_context_options(ctx, "pq15a6024");
 	in->numberofsegments = oriPoints.size();
 	in->numberofpoints = oriPoints.size();
 
@@ -407,30 +320,47 @@ static int triangle_create()
 			triangleloop.tri = triangletraverse(m);
 			elementnumber++;
 		}
-		if (trisegsFin.size() >= 1) {
-			for (auto se : trisegsFin) {
-				line(dst, vertexsFin[se.x] , vertexsFin[se.y], cv::Scalar(0, 255, 255), 1, CV_AA, 0);
+
+		auto triplet = std::vector<Tpt_d>();
+		auto laplace_cords = std::vector<cv::Point2d>();
+		auto ori_mat = Matx2_d(meshVertexs.size(),2);
+		for(size_t i = 0;i != meshVertexs.size();++i) {
+			laplace_cords.emplace_back(laplace_cord(mesh, meshVertexs[i], triplet));
+			ori_mat(i, 0) = mesh.point(meshVertexs[i])[0];
+			ori_mat(i, 1) = mesh.point(meshVertexs[i])[1];
+			std::cout << ori_mat(i, 0) <<"  "<< ori_mat(i, 1) << std::endl;
+		}
+		std::cout << std::endl << std::endl;
+
+		auto laplace_mat = Spm_d(meshVertexs.size(), meshVertexs.size());
+		laplace_mat.setFromTriplets(triplet.begin(), triplet.end());
+
+		Matx2_d tst = laplace_mat * ori_mat;
+		auto id = Eigen::MatrixXd::Identity(meshVertexs.size(), meshVertexs.size());
+		Eigen::MatrixXd  tst2 = laplace_mat * id;
+		for (size_t i = 0; i != laplace_cords.size(); ++i) {
+			for (size_t j = 0; j != laplace_cords.size(); ++j) {
+				std::cout << tst2(i, j) << " ";
 			}
+			std::cout << std::endl;
 		}
-		if (segmentsFin.size() >= 1) {
-			for (auto se : segmentsFin) {
-				line(dst, vertexsFin[se.x] , vertexsFin[se.y] , cv::Scalar(0,0,255), 1, CV_AA, 0);
-			}
+		std::cout << std::endl << std::endl;
+		auto delta_mat = Matx2_d(meshVertexs.size(),2);
+
+		for (size_t i = 0; i != laplace_cords.size(); ++i) {
+			delta_mat(i, 0) = laplace_cords[i].x;
+			delta_mat(i, 1) = laplace_cords[i].y;
+			std::cout << delta_mat(i, 0) << "  " << delta_mat(i, 1) << std::endl;
 		}
+		std::cout << std::endl << std::endl;
 
-		auto op = mesh.point(meshVertexs[14]);
-		draw_point(dst, cv::Point2d(op[0], op[1]), cv::Scalar(0, 255, 21, 0), 6);
-		for (auto vohit = mesh.voh_iter(meshVertexs[14]); vohit.is_valid(); ++vohit) {
-			auto p = mesh.point(mesh.to_vertex_handle(*vohit));
-			printf("%lf %lf %lf\n", p[0], p[1], p[2]);
-			draw_point(dst, cv::Point2d(p[0], p[1]), cv::Scalar(0, 255, 21, 0), 6);
+		Eigen::SimplicialLDLT<Spm_d> sol (laplace_mat);
+		Matx2_d ans = sol.solve(delta_mat);
+		for (size_t i = 0; i != laplace_cords.size(); ++i) {
+			std::cout << ans(i, 0) << "  " << ans(i, 1) << std::endl;
 		}
+		
 
-		auto lap =  laplace_cord(mesh, meshVertexs[14]);
-		printf("%lf %lf\n", lap.x, lap.y);
-		draw_point(dst, cv::Point2d(op[0], op[1]) - lap, cv::Scalar(0, 25, 201, 0), 3);
-
-		printf("%lf %lf\n", (cv::Point2d(op[0], op[1]) - lap).x, (cv::Point2d(op[0], op[1]) - lap).y);
 		cv::namedWindow("x", 1);
 		imshow("x", dst);
 
@@ -452,7 +382,7 @@ static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
 {
 	cv::Point pt;
 	std::string temp;
-
+	static int n = 0;
 	auto clrPoint = cv::Scalar(255, 0, 0, 0);
 	auto clrText = cv::Scalar(255, 200, 0, 0);
 	if (event == CV_EVENT_MOUSEMOVE) {
@@ -462,7 +392,7 @@ static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
 		y = bound(y, 0, src.rows - 1);
 		pt = cv::Point(x, y);
 
-		if (points.size() >= 3 && if_in_range(pt)) {
+		if (points.size() >= 3 && if_in_range(pt, points)) {
 			pt = points[0];
 			temp = string_format("%s", "");
 		}
@@ -470,8 +400,8 @@ static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
 			temp = string_format("%d (%d,%d)", n + 1, pt.x, pt.y);
 		}
 
-		draw_text(src, temp, pt, getInverseColor(clrText));
-		draw_point(src, pt, getInverseColor(clrPoint));
+		draw_text(src, temp, pt, get_inverseColor(clrText));
+		draw_point(src, pt, get_inverseColor(clrPoint));
 
 		for (auto p : points) {
 			draw_point(src, p, clrPoint);
@@ -496,7 +426,7 @@ static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
 
 		pt = cv::Point(x, y);
 
-		if (points.size() >= 3 && if_in_range(pt)) {
+		if (points.size() >= 3 && if_in_range(pt, points)) {
 			imshow(mainWindowName, src);
 			cv::setMouseCallback(mainWindowName, nullptr, nullptr);
 			//cv::setMouseCallback(mainWindowName, drag_point, nullptr);
