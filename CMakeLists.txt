@@ -1,14 +1,24 @@
 cmake_minimum_required(VERSION 2.6)
 project(DAY2)
 
+if((NOT DEFINED OpenMesh_DIR) OR (OpenMesh_DIR EQUAL "OpenMesh_DIR-NOTFOUND") OR (OpenMesh_DIR EQUAL "OpenMesh_DIR_NOT_FOUND"))
+  set(OpenMesh_DIR "OpenMesh_DIR-NOTFOUND" CACHE PATH "Path to OpenMesh library.")
+  message(FATAL_ERROR "Path to OpenMesh library not set.")
+endif()
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+
 find_package(OpenCV REQUIRED )
 find_package(OpenGL REQUIRED )
+find_package(OpenMesh REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIR})
 include_directories(${OpenGL_INCLUDE_DIR})
+include_directories(${OPENMESH_INCLUDE_DIR})
 
 link_directories(${OpenCV_LIBRARY_DIR})
 link_directories(${OpenGL_LIBRARY_DIR})
+link_directories(${OPENMESH_LIBRARY_DIR})
 
 if(MSVC)
 

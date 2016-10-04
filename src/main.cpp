@@ -293,8 +293,6 @@ static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
 	}
 }
 
-
-
 #ifdef _MSC_VER
 #ifdef _DEBUG
 int main()

@@ -10,6 +10,7 @@ endif(WIN32)
 
 target_link_libraries( DAY2 ${OpenCV_LIBRARIES} )
 target_link_libraries( DAY2 ${OPENGL_LIBRARIES} )
+target_link_libraries( DAY2 ${OPENMESH_LIBRARIES} )
 
 add_subdirectory(triangle)
 
