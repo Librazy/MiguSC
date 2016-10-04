@@ -1,8 +1,10 @@
 #pragma once
 
 #include <Eigen/Core>
+#include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <Eigen/SparseCholesky>
+#include <Eigen/SparseQR>
 
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>

@@ -188,7 +188,7 @@ cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1, std::vector<Tpt
 	auto x = cv::Point2d(0.0, 0.0);
 
 	for (size_t i = 0; i != ncords.size();++i) {
-		out_triplet.emplace_back(Tpt_d(ns[i].idx(), p1.idx(), -nweigs.back()/s));
+		out_triplet.emplace_back(Tpt_d(p1.idx(), ns[i].idx(), -nweigs[i]/s));
 	}
 
 	for (size_t i = 0; i != ncords.size();++i) {
@@ -208,7 +208,7 @@ static int triangle_create()
 	auto ctx = triangle_context_create();
 	auto in = new triangleio();
 	reset_triangleio(in);
-	triangle_context_options(ctx, "pq15a6024");
+	triangle_context_options(ctx, "pq15a3024");
 	in->numberofsegments = oriPoints.size();
 	in->numberofpoints = oriPoints.size();
 
@@ -335,7 +335,6 @@ static int triangle_create()
 		auto laplace_mat = Spm_d(meshVertexs.size(), meshVertexs.size());
 		laplace_mat.setFromTriplets(triplet.begin(), triplet.end());
 
-		Matx2_d tst = laplace_mat * ori_mat;
 		auto id = Eigen::MatrixXd::Identity(meshVertexs.size(), meshVertexs.size());
 		Eigen::MatrixXd  tst2 = laplace_mat * id;
 		for (size_t i = 0; i != laplace_cords.size(); ++i) {
@@ -345,21 +344,29 @@ static int triangle_create()
 			std::cout << std::endl;
 		}
 		std::cout << std::endl << std::endl;
+
+		Matx2_d tst = tst2 * ori_mat;
+
 		auto delta_mat = Matx2_d(meshVertexs.size(),2);
 
 		for (size_t i = 0; i != laplace_cords.size(); ++i) {
 			delta_mat(i, 0) = laplace_cords[i].x;
 			delta_mat(i, 1) = laplace_cords[i].y;
-			std::cout << delta_mat(i, 0) << "  " << delta_mat(i, 1) << std::endl;
+			std::cout << delta_mat(i, 0) << "  " << delta_mat(i, 1) << " ! " << tst(i, 0) << "  " << tst(i, 1) << std::endl;
 		}
 		std::cout << std::endl << std::endl;
 
-		Eigen::SimplicialLDLT<Spm_d> sol (laplace_mat);
+		Eigen::SparseQR<Spm_d, Eigen::NaturalOrdering<Spm_d::Index>> sol(laplace_mat);
 		Matx2_d ans = sol.solve(delta_mat);
 		for (size_t i = 0; i != laplace_cords.size(); ++i) {
 			std::cout << ans(i, 0) << "  " << ans(i, 1) << std::endl;
 		}
-		
+
+		Matx2_d tst3 = tst2.ldlt().solve(delta_mat);
+
+		for (size_t i = 0; i != laplace_cords.size(); ++i) {
+			std::cout << tst3(i, 0) << "  " << tst3(i, 1) << " ! " << tst(i, 0) << "  " << tst(i, 1) << std::endl;
+		}
 
 		cv::namedWindow("x", 1);
 		imshow("x", dst);
@@ -461,6 +468,14 @@ int WinMain(HINSTANCE hInstance,
 int main()
 #endif// _MSC_VER
 {
+	Eigen::Matrix2f A, b;
+	A << 2, -1, -1, 3;
+	b << 1, 2, 3, 1;
+	std::cout << "Here is the matrix A:\n" << A << std::endl;
+	std::cout << "Here is the right hand side b:\n" << b << std::endl;
+	Eigen::Matrix2f x = A.ldlt().solve(b);
+	std::cout << "The solution is:\n" << x << std::endl;
+
 	cv::namedWindow(mainWindowName, 1);
 
 	ori = cv::imread("qwe.jpg");
