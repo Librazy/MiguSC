@@ -347,26 +347,18 @@ static int triangle_create()
 
 		Matx2_d tst = tst2 * ori_mat;
 
-		auto delta_mat = Matx2_d(meshVertexs.size(),2);
+		auto delta_mat = Eigen::VectorXd(meshVertexs.size());
 
 		for (size_t i = 0; i != laplace_cords.size(); ++i) {
-			delta_mat(i, 0) = laplace_cords[i].x;
-			delta_mat(i, 1) = laplace_cords[i].y;
-			std::cout << delta_mat(i, 0) << "  " << delta_mat(i, 1) << " ! " << tst(i, 0) << "  " << tst(i, 1) << std::endl;
+			delta_mat(i) = laplace_cords[i].x;
+			std::cout << delta_mat(i) << " ! " << tst(i, 0) << "  " << tst(i, 1) << std::endl;
 		}
 		std::cout << std::endl << std::endl;
 
-		Eigen::SparseQR<Spm_d, Eigen::NaturalOrdering<Spm_d::Index>> sol(laplace_mat);
-		Matx2_d ans = sol.solve(delta_mat);
-		for (size_t i = 0; i != laplace_cords.size(); ++i) {
-			std::cout << ans(i, 0) << "  " << ans(i, 1) << std::endl;
-		}
+		Eigen::VectorXd xxx = (tst2.transpose() * tst2).ldlt().solve(tst2.transpose() * delta_mat) ;
 
-		Matx2_d tst3 = tst2.ldlt().solve(delta_mat);
+		std::cout << xxx << std::endl;
 
-		for (size_t i = 0; i != laplace_cords.size(); ++i) {
-			std::cout << tst3(i, 0) << "  " << tst3(i, 1) << " ! " << tst(i, 0) << "  " << tst(i, 1) << std::endl;
-		}
 
 		cv::namedWindow("x", 1);
 		imshow("x", dst);
