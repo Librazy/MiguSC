@@ -106,7 +106,7 @@ static int triangle_create()
 	auto ctx = triangle_context_create();
 	auto in = new triangleio();
 	reset_triangleio(in);
-	triangle_context_options(ctx, "pq10a256");
+	triangle_context_options(ctx, "pq15a1024");
 	in->numberofsegments = oriPoints.size();
 	in->numberofpoints = oriPoints.size();
 
@@ -210,9 +210,10 @@ static int triangle_create()
 		cv::namedWindow("x", 1);
 		imshow("x", dst);
 
+		triangle_context_destroy(ctx);
+
 		free(in->segmentlist);
 		free(in->segmentmarkerlist);
-
 
 		free(in->pointlist);
 		free(in->pointmarkerlist);
