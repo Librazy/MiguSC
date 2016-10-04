@@ -83,9 +83,9 @@ static bool if_in_range(cv::Point2f point)
 	return !points.empty() && norm(point - points[0]) < 30;
 }
 
-static void draw_point(cv::Mat& img, cv::Point fp, cv::Scalar color)
+static void draw_point(cv::Mat& img, cv::Point fp, cv::Scalar color, int rad = 2)
 {
-	circle(img, fp, 2, color, CV_FILLED, CV_AA, 0);
+	circle(img, fp, rad, color, CV_FILLED, CV_AA, 0);
 }
 
 static void draw_line(cv::Mat& img, cv::Point p1, cv::Point p2, cv::Scalar color = cv::Scalar(0, 0, 0))
@@ -106,6 +106,188 @@ static void draw_text(cv::Mat& img, cv::String text, cv::Point org, cv::Scalar c
 static void draw_text(cv::Mat& img, imgText label)
 {
 	draw_text(img, label.text, label.orgi, label.color);
+}
+//
+////邻接顶点的余切权重计算
+//void CotangentWeights(TriMs*TMesh, int vIndex, std::vector<double>&vweight, double &WeightSum, bool bNormalize)//计算一阶邻近点的各自cottan权重
+//{
+//	int NeighborNumber = TMesh->neighbors[vIndex].size();
+//	vweight.resize(NeighborNumber);
+//	WeightSum = 0;
+//	std::vector<int>&NeiV = TMesh->neighbors[vIndex];
+//	for (int i = 0; i < NeighborNumber; i++)
+//	{
+//		int j_nei = NeiV[i];
+//		std::vector<int>tempnei;
+//		Co_neighbor(TMesh, vIndex, j_nei, tempnei);
+//		double cotsum = 0.0;
+//		for (int j = 0; j < tempnei.size(); j++)
+//		{
+//			vec vivo = TMesh->vertices[vIndex] - TMesh->vertices[tempnei[j]];
+//			vec vjvo = TMesh->vertices[j_nei] - TMesh->vertices[tempnei[j]];
+//			double dotvector = vivo DOT vjvo;
+//			dotvector = dotvector / sqrt(len2(vivo)*len2(vjvo) - dotvector*dotvector);
+//			cotsum += dotvector;
+//		}
+//		vweight[i] = cotsum / 2.0;
+//		WeightSum += vweight[i];
+//	}
+//
+//	if (bNormalize)
+//	{
+//		for (int k = 0; k < NeighborNumber; ++k)
+//		{
+//			vweight[k] /= WeightSum;
+//		}
+//		WeightSum = 1.0;
+//	}
+//}
+//
+////获取两顶点的共同邻接顶点
+//void Co_neighbor(TriMs *Tmesh, int u_id, int v_id, std::vector<int>&co_neiv)
+//{
+//	Tmesh->need_adjacentedges();
+//	std::vector<int>&u_id_ae = Tmesh->adjancetedge[u_id];
+//	int en = u_id_ae.size();
+//	Tedge Co_Edge;
+//	for (int i = 0; i < en; i++)
+//	{
+//		Tedge &ae = Tmesh->m_edges[u_id_ae[i]];
+//		int opsi = ae.opposite_vertex(u_id);
+//		if (opsi == v_id)
+//		{
+//			Co_Edge = ae;
+//			break;
+//		}
+//	}
+//	for (int i = 0; i < Co_Edge.m_adjacent_faces.size(); i++)
+//	{
+//		TriMs::Face af = Tmesh->faces[Co_Edge.m_adjacent_faces[i]];
+//		for (int j = 0; j < 3; j++)
+//		{
+//			if ((af[j] != u_id) && (af[j] != v_id))
+//			{
+//				co_neiv.push_back(af[j]);
+//			}
+//		}
+//	}
+//}
+////计算拉普拉斯矩阵
+//void Get_Laplace_Matrix()
+//{
+//	int vn = m_BaseMesh->vertices.size();
+//	int count0 = 0;
+//	std::vector<int>begin_N(vn);
+//	for (int i = 0; i < vn; i++)
+//	{
+//		begin_N[i] = count0;
+//		count0 += m_BaseMesh->neighbors[i].size() + 1;
+//	}
+//	typedef Eigen::Triplet<double> T;
+//	std::vector<T> tripletList(count0);
+//	for (int i = 0; i < vn; i++)
+//	{
+//		VProperty & vi = m_vertices[i];
+//		tripletList[begin_N[i]] = T(i, i, -vi.VSumWeight);
+//		int nNbrs = vi.VNeighbors.size();
+//		for (int k = 0; k < nNbrs; ++k)
+//		{
+//			tripletList[begin_N[i] + k + 1] = T(vi.VNeighbors[k], i, vi.VNeiWeight[k]);
+//		}
+//	}
+//	m_Laplace_Matrix.resize(vn, vn);
+//	m_Laplace_Matrix.setFromTriplets(tripletList.begin(), tripletList.end());
+//
+//}
+
+double cot(OpenMeshT::Point p1, OpenMeshT::Point p2, OpenMeshT::Point pc)
+{
+	auto cp1 = cv::Point2d(p1[0], p1[1]);
+	auto cp2 = cv::Point2d(p2[0], p2[1]);
+	auto cpc = cv::Point2d(pc[0], pc[1]);
+	auto l1 = cp1 - cpc;
+	auto l2 = cp2 - cpc;
+	auto n1 = norm(l1);
+	auto n2 = norm(l2);
+
+	l1 /= n1;
+	l2 /= n2;
+
+	auto dot = l1.ddot(l2);
+
+	auto sqrdot = dot * dot;
+	return dot / sqrt( 1 - sqrdot);
+}
+
+std::vector<double> cot_weights(TriMs& mesh,OpenMesh::VertexHandle v1, OpenMesh::VertexHandle v2, std::vector<OpenMesh::VertexHandle> vcs)
+{
+	auto p1 = mesh.point(v1);
+	auto p2 = mesh.point(v2);
+	auto w = std::vector<double>();
+	for(auto p : vcs) {
+		w.emplace_back(cot(p1, p2, mesh.point(p)));
+	}
+	return w;
+}
+
+std::vector<OpenMesh::VertexHandle> nerghbor(TriMs& mesh, OpenMesh::VertexHandle p)
+{
+	auto res = std::vector<OpenMesh::VertexHandle>();
+	for (auto pn : mesh.voh_range(p)) {
+		res.emplace_back(mesh.to_vertex_handle(pn));
+	}
+	return res;
+}
+
+std::vector<OpenMesh::VertexHandle> co_nerghbor(TriMs& mesh, OpenMesh::VertexHandle p1, OpenMesh::VertexHandle p2)
+{
+	auto res = std::vector<OpenMesh::VertexHandle>();
+	for (auto p1n : mesh.voh_range(p1))
+	for (auto p2n : mesh.voh_range(p2)) {
+		if(mesh.to_vertex_handle(p1n).idx() == mesh.to_vertex_handle(p2n).idx() ) {
+			res.emplace_back(mesh.to_vertex_handle(p1n));
+		}
+	}
+	return res;
+}
+
+double cot_weight(TriMs& mesh, OpenMesh::VertexHandle p1, OpenMesh::VertexHandle p2)
+{
+	auto con = co_nerghbor(mesh, p1, p2);
+	auto ws = cot_weights(mesh, p1, p2, con);
+	return accumulate(ws.begin(), ws.end(), 0.0);
+}
+
+
+cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1)
+{
+	auto ns = nerghbor(mesh, p1);
+	auto mp1 = mesh.point(p1);
+	auto cp1 = cv::Point2d(mp1[0], mp1[1]);
+	auto ncords = std::vector<cv::Point2d>();
+	auto nweigs = std::vector<double>();
+	auto ndetas = std::vector<cv::Point2d>();
+
+
+	for(auto n : ns) {
+		auto p = mesh.point(n);
+		ncords.emplace_back(cv::Point2d(p[0], p[1]));
+		nweigs.emplace_back(cot_weight(mesh, p1, n));
+	}
+
+	auto s = accumulate(nweigs.begin(), nweigs.end(), 0.0);
+	auto x = cv::Point2d(0.0, 0.0);
+	for (size_t i = 0; i != ncords.size();++i) {
+		x += nweigs[i] * ncords[i] / s;
+	}
+
+	// x = cv::Point2d(0.0, 0.0);
+	//for (size_t i = 0; i != ncords.size(); ++i) {
+	//	x += ncords[i] / static_cast<double>(ncords.size());
+	//}
+
+	return cp1 - x;
+
 }
 
 static int triangle_create()
@@ -236,6 +418,19 @@ static int triangle_create()
 			}
 		}
 
+		auto op = mesh.point(meshVertexs[14]);
+		draw_point(dst, cv::Point2d(op[0], op[1]), cv::Scalar(0, 255, 21, 0), 6);
+		for (auto vohit = mesh.voh_iter(meshVertexs[14]); vohit.is_valid(); ++vohit) {
+			auto p = mesh.point(mesh.to_vertex_handle(*vohit));
+			printf("%lf %lf %lf\n", p[0], p[1], p[2]);
+			draw_point(dst, cv::Point2d(p[0], p[1]), cv::Scalar(0, 255, 21, 0), 6);
+		}
+
+		auto lap =  laplace_cord(mesh, meshVertexs[14]);
+		printf("%lf %lf\n", lap.x, lap.y);
+		draw_point(dst, cv::Point2d(op[0], op[1]) - lap, cv::Scalar(0, 25, 201, 0), 3);
+
+		printf("%lf %lf\n", (cv::Point2d(op[0], op[1]) - lap).x, (cv::Point2d(op[0], op[1]) - lap).y);
 		cv::namedWindow("x", 1);
 		imshow("x", dst);
 
