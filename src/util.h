@@ -95,7 +95,7 @@ static void draw_text(cv::Mat& img, imgText label)
 {
 	draw_text(img, label.text, label.orgi, label.color);
 }
-static const std::string mainWindowName = "Affine with CUDA support";
+static const std::string mainWindowName = "Iterative Linear Solvers";
 
 static bool if_in_range(cv::Point2d const& point, std::vector<cv::Point2d> const& points)
 {

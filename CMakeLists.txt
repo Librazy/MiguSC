@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.6)
 project(MiguSC)
 
+if(POLICY CMP0020)
+  cmake_policy(SET CMP0020 OLD)
+endif()
+
 if((NOT DEFINED OpenMesh_DIR) OR (OpenMesh_DIR EQUAL "OpenMesh_DIR-NOTFOUND") OR (OpenMesh_DIR EQUAL "OpenMesh_DIR_NOT_FOUND"))
   set(OpenMesh_DIR "OpenMesh_DIR-NOTFOUND" CACHE PATH "Path to OpenMesh library.")
   message(FATAL_ERROR "Path to OpenMesh library not set.")
@@ -12,6 +16,10 @@ find_package(OpenCV REQUIRED )
 find_package(OpenGL REQUIRED )
 find_package(OpenMesh REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Gui REQUIRED)
+find_package(Qt5Widgets REQUIRED)
+find_package(Qt5OpenGL REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIR})
 include_directories(${OpenGL_INCLUDE_DIR})

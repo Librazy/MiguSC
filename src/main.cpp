@@ -211,7 +211,7 @@ static int triangle_create()
 	auto ctx = triangle_context_create();
 	auto in = new triangleio();
 	reset_triangleio(in);
-	triangle_context_options(ctx, "pq15a3024");
+	triangle_context_options(ctx, "pq15a256");
 	in->numberofsegments = oriPoints.size();
 	in->numberofpoints = oriPoints.size();
 
@@ -321,7 +321,7 @@ static int triangle_create()
 		}
 
 		const auto num = meshVertexs.size();
-		std::cout << "原始坐标" << std::endl;
+		//std::cout << "原始坐标" << std::endl;
 		auto triplet = std::vector<Tpt_d>();
 		auto laplace_cords = std::vector<cv::Point2d>();
 		Eigen::VectorXd ori_x(num);
@@ -332,7 +332,7 @@ static int triangle_create()
 			ori_y(i) = mesh.point(meshVertexs[i])[1];
 		}
 
-		std::cout << ori_x << std::endl << ori_y << std::endl;
+		//std::cout << ori_x << std::endl << ori_y << std::endl;
 
 		triplet.emplace_back(Tpt_d(num + 0, 0, 1));
 		triplet.emplace_back(Tpt_d(num + 1, 1, 1));
@@ -341,47 +341,44 @@ static int triangle_create()
 		auto laplace_mat = Spm_d(num + 3, meshVertexs.size());
 		laplace_mat.setFromTriplets(triplet.begin(), triplet.end());
 
-		std::cout << std::endl << std::endl;
+		//std::cout << std::endl << std::endl;
 
-		std::cout << "拉普拉斯坐标" << std::endl;
-		auto delta_x = Eigen::VectorXd(num + 3);
-		auto delta_y = Eigen::VectorXd(num + 3);
+		//std::cout << "拉普拉斯坐标" << std::endl;
+		auto delta = Eigen::MatrixX2d(num + 3, 2);
 
 		for (size_t i = 0; i != laplace_cords.size(); ++i) {
-			delta_x(i) = laplace_cords[i].x;
-			delta_y(i) = laplace_cords[i].y;
+			delta(i, 0) = laplace_cords[i].x;
+			delta(i, 1) = laplace_cords[i].y;
 		}
 
-		delta_x(num + 0) = mesh.point(meshVertexs[0])[0] + 40;
-		delta_x(num + 1) = mesh.point(meshVertexs[1])[0];
-		delta_x(num + 2) = mesh.point(meshVertexs[2])[0];
+		delta(num + 0,0) = mesh.point(meshVertexs[0])[0];
+		delta(num + 1,0) = mesh.point(meshVertexs[1])[0];
+		delta(num + 2,0) = mesh.point(meshVertexs[2])[0];
 
-		delta_y(num + 0) = mesh.point(meshVertexs[0])[1] + 40;
-		delta_y(num + 1) = mesh.point(meshVertexs[1])[1];
-		delta_y(num + 2) = mesh.point(meshVertexs[2])[1];
+		delta(num + 0,1) = mesh.point(meshVertexs[0])[1];
+		delta(num + 1,1) = mesh.point(meshVertexs[1])[1];
+		delta(num + 2,1) = mesh.point(meshVertexs[2])[1];
 
-		std::cout << delta_x << std::endl << delta_y << std::endl;
-
-		Eigen::LeastSquaresConjugateGradient<Spm_d> lspg;
-		lspg.setMaxIterations(400);
-		lspg.setTolerance(0.00002);
+		//std::cout << delta_x << std::endl << delta_y << std::endl;
+		laplace_mat.makeCompressed();
+		Eigen::LeastSquaresConjugateGradient <Spm_d> lspg;
+		lspg.setTolerance(0.0002);
 		lspg.compute(laplace_mat);
-		if (lspg.info() != Eigen::Success) {
-			std::cout << "!!!" << std::endl;
-		}
-		Eigen::VectorXd xx = lspg.solve(delta_x);
-		Eigen::VectorXd yy = lspg.solve(delta_y);
+		//if (lspg.info() != Eigen::Success) {
+		//	//std::cout << "!!!" << std::endl;
+		//}
+		Eigen::MatrixX2d xx = lspg.solve(delta);
 
-		if (lspg.info() != Eigen::Success) {
-			std::cout << "!!!" << std::endl;
-		}
-		std::cout << "LeastSquaresConjugateGradient" << std::endl;
-		std::cout << xx << std::endl;
-		std::cout << yy << std::endl;
+		//if (lspg.info() != Eigen::Success) {
+		//	//std::cout << "!!!" << std::endl;
+		//}
+		//std::cout << "LeastSquaresConjugateGradient" << std::endl;
+		//std::cout << xx << std::endl;
+		//std::cout << yy << std::endl;
 
-		std::cout << "拉普拉斯矩阵 * LeastSquaresConjugateGradient" << std::endl;
-		std::cout << laplace_mat * xx << std::endl << std::endl;
-		std::cout << laplace_mat * yy << std::endl << std::endl;
+		//std::cout << "拉普拉斯矩阵 * LeastSquaresConjugateGradient" << std::endl;
+		//std::cout << laplace_mat * xx << std::endl << std::endl;
+		//std::cout << laplace_mat * yy << std::endl << std::endl;
 		
 		std::cout << "#iterations:     " << lspg.iterations() << std::endl;
 		std::cout << "estimated error: " << lspg.error() << std::endl;
@@ -391,11 +388,11 @@ static int triangle_create()
 		}
 
 		for (size_t i = 0; i != num;++i) {
-			draw_point(dst, cv::Point(xx[i], yy[i]), cv::Scalar(0, 0, 255, 0), 2);
+			draw_point(dst, cv::Point(xx(i ,0), xx(i ,1)), cv::Scalar(0, 0, 255, 0), 2);
 		}
 
 		for (auto a : trisegsFin) {
-			draw_line(dst, cv::Point(xx[a.x], yy[a.x]), cv::Point(xx[a.y], yy[a.y]));
+			draw_line(dst, cv::Point(xx(a.x ,0), xx(a.x ,1)), cv::Point(xx(a.y, 0), xx(a.y, 1)));
 		}
 				
 		cv::namedWindow("x", 1);
@@ -483,7 +480,7 @@ static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
 		}
 	}
 }
-#define _DEBUG
+
 #ifdef _MSC_VER
 #ifdef _DEBUG
 int main()
@@ -498,6 +495,7 @@ int WinMain(HINSTANCE hInstance,
 int main()
 #endif// _MSC_VER
 {
+
 	cv::namedWindow(mainWindowName, 1);
 
 	ori = cv::imread("qwe.jpg");
