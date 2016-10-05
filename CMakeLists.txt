@@ -11,15 +11,18 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 find_package(OpenCV REQUIRED )
 find_package(OpenGL REQUIRED )
 find_package(OpenMesh REQUIRED)
+find_package(SuiteSparse REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIR})
 include_directories(${OpenGL_INCLUDE_DIR})
 include_directories(${OPENMESH_INCLUDE_DIR})
+include_directories(${SuiteSparse_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR})
 
 link_directories(${OpenCV_LIBRARY_DIR})
 link_directories(${OpenGL_LIBRARY_DIR})
+link_directories(${SuiteSparse_LIB_DIR})
 link_directories(${OPENMESH_LIBRARY_DIR})
 
 if(MSVC)
