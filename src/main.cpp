@@ -189,22 +189,19 @@ cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1, std::vector<Tpt
 
 	size_t num = ncords.size();
 
-	//for (size_t i = 0; i != num;++i) {
-	//	out_triplet.emplace_back(Tpt_d(p1.idx(), ns[i].idx(), -nweigs[i]/s));
-	//}
-
 	for (size_t i = 0; i != num; ++i) {
-		out_triplet.emplace_back(Tpt_d(p1.idx(), ns[i].idx(), -1.0 / num));
+		out_triplet.emplace_back(Tpt_d(p1.idx(), ns[i].idx(), -nweigs[i] / s));
 	}
-
-	//for (size_t i = 0; i != num;++i) {
-	//	x += nweigs[i] * ncords[i] / s;
-	//}
-
-	 x = cv::Point2d(0.0, 0.0);
 	for (size_t i = 0; i != num; ++i) {
-		x += ncords[i] / static_cast<double>(ncords.size());
+		x += nweigs[i] * ncords[i] / s;
 	}
+	//for (size_t i = 0; i != num; ++i) {
+	//	out_triplet.emplace_back(Tpt_d(p1.idx(), ns[i].idx(), -1.0 / num));
+	//}
+	//	x = cv::Point2d(0.0, 0.0);
+	//for (size_t i = 0; i != num; ++i) {
+	//	x += ncords[i] / static_cast<double>(ncords.size());
+	//}
 	return cp1 - x;
 
 }
@@ -326,56 +323,52 @@ static int triangle_create()
 			triangleloop.tri = triangletraverse(m);
 			elementnumber++;
 		}
-
+		int num = meshVertexs.size();
+		std::cout << "原始坐标" << std::endl;
 		auto triplet = std::vector<Tpt_d>();
 		auto laplace_cords = std::vector<cv::Point2d>();
-		auto ori_mat = Matx2_d(meshVertexs.size(),2);
-		std::cout << "{";
+		Eigen::Matrix<double, Eigen::Dynamic, 2> ori_mat(meshVertexs.size(), 2);
 		for(size_t i = 0;i != meshVertexs.size();++i) {
 			laplace_cords.emplace_back(laplace_cord(mesh, meshVertexs[i], triplet));
 			ori_mat(i, 0) = mesh.point(meshVertexs[i])[0];
 			ori_mat(i, 1) = mesh.point(meshVertexs[i])[1];
-			std::cout <<"{"<< ori_mat(i, 0) <<","<< ori_mat(i, 1) << "},"<<std::endl;
-		}std::cout << "}";
-		std::cout << std::endl << std::endl;
+		}
+
+		std::cout << ori_mat << std::endl << std::endl;
 
 		auto laplace_mat = Spm_d(meshVertexs.size(), meshVertexs.size());
 		laplace_mat.setFromTriplets(triplet.begin(), triplet.end());
 
-		auto id = Eigen::MatrixXd::Identity(meshVertexs.size(), meshVertexs.size());
+		std::cout << "拉普拉斯矩阵" << std::endl;
+		auto id = Eigen::MatrixXd::Identity(num, num);
 		Eigen::MatrixXd  tst2 = laplace_mat * id;
-		std::cout <<"{"<< std::endl;
-		for (size_t i = 0; i != laplace_cords.size(); ++i) {
-			std::cout <<"{"<< std::endl;
-			for (size_t j = 0; j != laplace_cords.size(); ++j) {
-				std::cout << tst2(i, j) << ",";
-			}
-			std::cout <<"},"<< std::endl;
-		}std::cout << "}";
+		std::cout << tst2 << std::endl;
+
 		std::cout << std::endl << std::endl;
 
 		Matx2_d tst = tst2 * ori_mat;
 
-		auto delta_mat = Eigen::VectorXd(meshVertexs.size());
+		std::cout << "拉普拉斯坐标" << std::endl;
+		auto delta_mat = Matx2_d(meshVertexs.size());
 
 		for (size_t i = 0; i != laplace_cords.size(); ++i) {
-			delta_mat(i) = laplace_cords[i].x;
-			std::cout << delta_mat(i) << std::endl;
+			delta_mat(i, 0) = laplace_cords[i].x;
+			delta_mat(i, 1) = laplace_cords[i].y;
 		}
-		std::cout << std::endl << "{";
-		for (size_t i = 0; i != laplace_cords.size(); ++i) {
-			std::cout <<  "{" << tst(i, 0) << "," << tst(i, 1)<< "},"  << std::endl;
-		}
-		std::cout << "}";
-		std::cout << std::endl << std::endl;
-		//laplace_mat.makeCompressed();
-		//Eigen::SparseQR<Spm_d, Eigen::AMDOrdering<Spm_d::Index>> suplu(laplace_mat);
-		//Eigen::VectorXd v = suplu.solve(delta_mat);
-		//std::cout << v << std::endl << std::endl;
-
-		std::cout << laplace_mat << std::endl << std::endl;
-
 		std::cout << delta_mat << std::endl << std::endl;
+
+		std::cout << "拉普拉斯矩阵 * 原始坐标" << std::endl;
+
+		std::cout << tst << std::endl << std::endl;
+
+		std::cout << "SparseQR " << std::endl;
+		laplace_mat.makeCompressed();
+		Eigen::SparseQR<Spm_d, Eigen::AMDOrdering<Spm_d::StorageIndex>> suplu(laplace_mat);
+		Matx2_d v = suplu.solve(delta_mat);
+		std::cout << v << std::endl << std::endl;
+
+		std::cout << "拉普拉斯矩阵 * SparseQR" << std::endl;
+		std::cout << laplace_mat * v << std::endl << std::endl;
 
 		Eigen::LeastSquaresConjugateGradient<Spm_d> lspg;
 		lspg.setMaxIterations(400);
@@ -389,28 +382,15 @@ static int triangle_create()
 		if (lspg.info() != Eigen::Success) {
 			std::cout << "!!!" << std::endl;
 		}
-
+		std::cout << "LeastSquaresConjugateGradient" << std::endl;
 		std::cout << xx << std::endl;
+
+		std::cout << "拉普拉斯矩阵 * LeastSquaresConjugateGradient" << std::endl;
+		std::cout << laplace_mat * v << std::endl << std::endl;
+
 
 		std::cout << "#iterations:     " << lspg.iterations() << std::endl;
 		std::cout << "estimated error: " << lspg.error() << std::endl;
-
-		std::cout << std::endl << std::endl;
-
-		Eigen::SPQR<Spm_d> lspg2;
-		lspg2.compute(laplace_mat);
-		if (lspg2.info() != Eigen::Success) {
-			std::cout << "!!!" << std::endl;
-		}
-		Eigen::VectorXd xx2 = lspg2.solve(delta_mat);
-
-		if (lspg.info() != Eigen::Success) {
-			std::cout << "!!!" << std::endl;
-		}
-
-		std::cout << xx2 << std::endl;
-
-		std::cout << std::endl << std::endl;
 
 		cv::namedWindow("x", 1);
 		imshow("x", dst);

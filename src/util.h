@@ -4,7 +4,6 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <Eigen/IterativeLinearSolvers>
-#include <Eigen/SPQRSupport>
 
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
