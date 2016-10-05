@@ -368,7 +368,7 @@ static int triangle_create()
 		}
 		std::cout << "}";
 		std::cout << std::endl << std::endl;
-		//laplace_mat.makeCompressed();
+		laplace_mat.makeCompressed();
 		//Eigen::SparseQR<Spm_d, Eigen::AMDOrdering<Spm_d::Index>> suplu(laplace_mat);
 		//Eigen::VectorXd v = suplu.solve(delta_mat);
 		//std::cout << v << std::endl << std::endl;
@@ -497,20 +497,7 @@ static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
 		}
 	}
 }
-#define _DEBUG
-#ifdef _MSC_VER
-#ifdef _DEBUG
 int main()
-#else
-int WinMain(HINSTANCE hInstance,
-	HINSTANCE hPrevInstance,
-	LPTSTR    lpCmdLine,
-	int       nCmdShow)
-#endif // !DEBUG
-
-#elif
-int main()
-#endif// _MSC_VER
 {
 	Eigen::Matrix2f A, b;
 	A << 2, -1, -1, 3;

@@ -10,7 +10,6 @@ endif(WIN32)
 
 target_link_libraries( MiguSC ${OpenCV_LIBRARIES} )
 target_link_libraries( MiguSC ${OPENGL_LIBRARIES} )
-target_link_libraries( MiguSC ${SuiteSparse_LIBRARIES} )
 target_link_libraries( MiguSC ${OPENMESH_LIBRARIES} )
 
 add_subdirectory(triangle)
