@@ -280,10 +280,6 @@ static int triangle_create()
 			vertexloop = vertextraverse(m);
 		}
 
-		for (auto p : vertexsFin) {
-			draw_point(dst, p , cv::Scalar(0, 200, 0, 0));
-		}
-
 		traversalinit(&m->subsegs);
 		subsegloop.ss = subsegtraverse(m);
 		subsegloop.ssorient = 0;
@@ -323,52 +319,48 @@ static int triangle_create()
 			triangleloop.tri = triangletraverse(m);
 			elementnumber++;
 		}
-		int num = meshVertexs.size();
+
+		const auto num = meshVertexs.size();
 		std::cout << "原始坐标" << std::endl;
 		auto triplet = std::vector<Tpt_d>();
 		auto laplace_cords = std::vector<cv::Point2d>();
-		Eigen::Matrix<double, Eigen::Dynamic, 2> ori_mat(meshVertexs.size(), 2);
+		Eigen::VectorXd ori_x(num);
+		Eigen::VectorXd ori_y(num);
 		for(size_t i = 0;i != meshVertexs.size();++i) {
 			laplace_cords.emplace_back(laplace_cord(mesh, meshVertexs[i], triplet));
-			ori_mat(i, 0) = mesh.point(meshVertexs[i])[0];
-			ori_mat(i, 1) = mesh.point(meshVertexs[i])[1];
+			ori_x(i) = mesh.point(meshVertexs[i])[0];
+			ori_y(i) = mesh.point(meshVertexs[i])[1];
 		}
 
-		std::cout << ori_mat << std::endl << std::endl;
+		std::cout << ori_x << std::endl << ori_y << std::endl;
 
-		auto laplace_mat = Spm_d(meshVertexs.size(), meshVertexs.size());
+		triplet.emplace_back(Tpt_d(num + 0, 0, 1));
+		triplet.emplace_back(Tpt_d(num + 1, 1, 1));
+		triplet.emplace_back(Tpt_d(num + 2, 2, 1));
+		
+		auto laplace_mat = Spm_d(num + 3, meshVertexs.size());
 		laplace_mat.setFromTriplets(triplet.begin(), triplet.end());
-
-		std::cout << "拉普拉斯矩阵" << std::endl;
-		auto id = Eigen::MatrixXd::Identity(num, num);
-		Eigen::MatrixXd  tst2 = laplace_mat * id;
-		std::cout << tst2 << std::endl;
 
 		std::cout << std::endl << std::endl;
 
-		Matx2_d tst = tst2 * ori_mat;
-
 		std::cout << "拉普拉斯坐标" << std::endl;
-		auto delta_mat = Matx2_d(meshVertexs.size());
+		auto delta_x = Eigen::VectorXd(num + 3);
+		auto delta_y = Eigen::VectorXd(num + 3);
 
 		for (size_t i = 0; i != laplace_cords.size(); ++i) {
-			delta_mat(i, 0) = laplace_cords[i].x;
-			delta_mat(i, 1) = laplace_cords[i].y;
+			delta_x(i) = laplace_cords[i].x;
+			delta_y(i) = laplace_cords[i].y;
 		}
-		std::cout << delta_mat << std::endl << std::endl;
 
-		std::cout << "拉普拉斯矩阵 * 原始坐标" << std::endl;
+		delta_x(num + 0) = mesh.point(meshVertexs[0])[0] + 40;
+		delta_x(num + 1) = mesh.point(meshVertexs[1])[0];
+		delta_x(num + 2) = mesh.point(meshVertexs[2])[0];
 
-		std::cout << tst << std::endl << std::endl;
+		delta_y(num + 0) = mesh.point(meshVertexs[0])[1] + 40;
+		delta_y(num + 1) = mesh.point(meshVertexs[1])[1];
+		delta_y(num + 2) = mesh.point(meshVertexs[2])[1];
 
-		std::cout << "SparseQR " << std::endl;
-		laplace_mat.makeCompressed();
-		Eigen::SparseQR<Spm_d, Eigen::AMDOrdering<Spm_d::StorageIndex>> suplu(laplace_mat);
-		Matx2_d v = suplu.solve(delta_mat);
-		std::cout << v << std::endl << std::endl;
-
-		std::cout << "拉普拉斯矩阵 * SparseQR" << std::endl;
-		std::cout << laplace_mat * v << std::endl << std::endl;
+		std::cout << delta_x << std::endl << delta_y << std::endl;
 
 		Eigen::LeastSquaresConjugateGradient<Spm_d> lspg;
 		lspg.setMaxIterations(400);
@@ -377,21 +369,35 @@ static int triangle_create()
 		if (lspg.info() != Eigen::Success) {
 			std::cout << "!!!" << std::endl;
 		}
-		Eigen::VectorXd xx = lspg.solve(delta_mat);
+		Eigen::VectorXd xx = lspg.solve(delta_x);
+		Eigen::VectorXd yy = lspg.solve(delta_y);
 
 		if (lspg.info() != Eigen::Success) {
 			std::cout << "!!!" << std::endl;
 		}
 		std::cout << "LeastSquaresConjugateGradient" << std::endl;
 		std::cout << xx << std::endl;
+		std::cout << yy << std::endl;
 
 		std::cout << "拉普拉斯矩阵 * LeastSquaresConjugateGradient" << std::endl;
-		std::cout << laplace_mat * v << std::endl << std::endl;
-
-
+		std::cout << laplace_mat * xx << std::endl << std::endl;
+		std::cout << laplace_mat * yy << std::endl << std::endl;
+		
 		std::cout << "#iterations:     " << lspg.iterations() << std::endl;
 		std::cout << "estimated error: " << lspg.error() << std::endl;
 
+		for (auto p : vertexsFin) {
+			draw_point(dst, p, cv::Scalar(0, 200, 0, 0), 5);
+		}
+
+		for (size_t i = 0; i != num;++i) {
+			draw_point(dst, cv::Point(xx[i], yy[i]), cv::Scalar(0, 0, 255, 0), 2);
+		}
+
+		for (auto a : trisegsFin) {
+			draw_line(dst, cv::Point(xx[a.x], yy[a.x]), cv::Point(xx[a.y], yy[a.y]));
+		}
+				
 		cv::namedWindow("x", 1);
 		imshow("x", dst);
 
@@ -492,14 +498,6 @@ int WinMain(HINSTANCE hInstance,
 int main()
 #endif// _MSC_VER
 {
-	Eigen::Matrix2f A, b;
-	A << 2, -1, -1, 3;
-	b << 1, 2, 3, 1;
-	std::cout << "Here is the matrix A:\n" << A << std::endl;
-	std::cout << "Here is the right hand side b:\n" << b << std::endl;
-	Eigen::Matrix2f x = A.ldlt().solve(b);
-	std::cout << "The solution is:\n" << x << std::endl;
-
 	cv::namedWindow(mainWindowName, 1);
 
 	ori = cv::imread("qwe.jpg");
