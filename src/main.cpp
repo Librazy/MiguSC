@@ -122,7 +122,7 @@ static int triangle_create()
 	auto ctx = triangle_context_create();
 	auto in = new triangleio();
 	reset_triangleio(in);
-	triangle_context_options(ctx, "pq15a3024");
+	triangle_context_options(ctx, "pq15a256");
 	in->numberofsegments = oriPoints.size();
 	in->numberofpoints = oriPoints.size();
 
@@ -271,25 +271,25 @@ static int triangle_create()
 		delta_m[num + 2][0] = mesh.point(meshVertexs[2])[0];
 		delta_m[num + 2][1] = mesh.point(meshVertexs[2])[1];
 
-		solve(t_m, delta_m, ans_m);
+		solve(t_m.t() * t_m, t_m.t() * delta_m, ans_m);
 
-		std::cout << "t_m" << std::endl;
-		std::cout << t_m << std::endl << std::endl;
+		//std::cout << "t_m" << std::endl;
+		//std::cout << t_m << std::endl << std::endl;
 
-		std::cout << "ori_m" << std::endl;
-		std::cout << ori_m << std::endl << std::endl;
+		//std::cout << "ori_m" << std::endl;
+		//std::cout << ori_m << std::endl << std::endl;
 
-		std::cout << "t_m * ori_m" << std::endl;
-		std::cout << t_m * ori_m << std::endl << std::endl;
+		////std::cout << "t_m * ori_m" << std::endl;
+		////std::cout << t_m * ori_m << std::endl << std::endl;
 
-		std::cout << "delta_m" << std::endl;
-		std::cout << delta_m << std::endl << std::endl;
+		//std::cout << "delta_m" << std::endl;
+		//std::cout << delta_m << std::endl << std::endl;
 
-		std::cout << "ans_m" << std::endl;
-		std::cout << ans_m << std::endl << std::endl;
+		//std::cout << "ans_m" << std::endl;
+		//std::cout << ans_m << std::endl << std::endl;
 
-		std::cout << "t_m * ans_m" << std::endl;
-		std::cout << t_m * ans_m << std::endl << std::endl;
+		////std::cout << "t_m * ans_m" << std::endl;
+		////std::cout << t_m * ans_m << std::endl << std::endl;
 
 		cv::namedWindow("x", 1);
 		imshow("x", dst);
