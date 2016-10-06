@@ -1,3 +1,4 @@
 build/
 buildcuda/
 *.tmp
+src/qt/x64/

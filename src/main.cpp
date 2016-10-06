@@ -276,6 +276,7 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 		for (auto a : trisegsFin) {
 			draw_line(dst4, cv::Point(cache(a.x, 0), cache(a.x, 1)), cv::Point(cache(a.y, 0), cache(a.y, 1)));
 		}
+		imshow(mainWindowName, dst4);
 	}
 }
 

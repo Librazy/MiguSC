@@ -53,6 +53,6 @@ if(MSVC)
 endif()
 
 set (CMAKE_CXX_STANDARD 14)
-
-include_directories(${DAY2_SOURCE_DIR}/src)
+include_external_msproject(OQtest ${MiguSC_SOURCE_DIR}/src/qt/QtGui.vcxproj)
+include_directories(${MiguSC_SOURCE_DIR}/src)
 add_subdirectory(src)
