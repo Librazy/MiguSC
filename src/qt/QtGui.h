@@ -6,7 +6,7 @@
 #include <QtWidgets/QApplication>
 
 #include <QtWidgets/QMainWindow>
-#include "ui_QtGui.h"
+#include <ui_QtGui.h>
 #include <QPushButton>
 #include <QLabel>
 #include <QPaintEvent>  
@@ -16,7 +16,7 @@
 #include <QGraphicsView>  
 #include <QGraphicsScene>  
 #include <QFileDialog>  
-#include<QMovie>
+#include <QMovie>
 
 using namespace cv;
 
@@ -36,7 +36,7 @@ public:
 private:
     Ui::QtGuiClass ui;
 
-private slots: //�������ܲۺ���
+private slots:
 	void FopenImg();
-	void StyleChange();
+	void StyleChange() const;
 };

@@ -51,14 +51,15 @@ public:
 private:
 	Ui::QtGuiClass ui;
 
-private slots: //�������ܲۺ���
+private slots:
 	void step1(); 
 	void step2();
 	void step3();
-	void StyleChange1();
-	void StyleChange2();
-	void StyleChange3();
+	void StyleChange1() const;
+	void StyleChange2() const;
+	void StyleChange3() const;
 public:
-	void mousePressEvent(QMouseEvent *);
+	void mousePressEvent(QMouseEvent *) override;
+	void mouseMoveEvent(QMouseEvent *) override;
 };
 

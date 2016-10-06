@@ -96,9 +96,6 @@
     <ClInclude Include="GeneratedFiles\ui_QtGui.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
-    <ClInclude Include="trans.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="global.h">
       <Filter>Header Files</Filter>
     </ClInclude>
