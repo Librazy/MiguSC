@@ -111,6 +111,16 @@ static cv::Point2d get_point(TriMs& meshs, OpenMesh::VertexHandle const& v)
 	return cv::Point2d(meshs.point(v)[0], meshs.point(v)[1]);
 }
 
+static cv::Point2i get_pointi(TriMs& meshs, OpenMesh::VertexHandle const& v)
+{
+	return cv::Point2i(static_cast<int>(meshs.point(v)[0]), static_cast<int>(meshs.point(v)[1]));
+}
+
+static cv::Point2f get_pointf(TriMs& meshs, OpenMesh::VertexHandle const& v)
+{
+	return cv::Point2f(static_cast<float>(meshs.point(v)[0]), static_cast<float>(meshs.point(v)[1]));
+}
+
 static auto init = false;
 
 static auto is_fixed_vertex = std::vector<bool>();
@@ -126,8 +136,10 @@ auto laplace_mat = Spm_d();
 static auto meshVertexs = std::vector<OpenMesh::VertexHandle>();
 static auto meshFixedVertexs = std::vector<OpenMesh::VertexHandle>();
 static auto meshFases = std::vector<OpenMesh::FaceHandle>(); 
-static auto meshFasesVhandles = std::vector<std::vector<OpenMesh::VertexHandle>>(); 
+static auto meshFasesOriPoints = std::vector<std::vector<cv::Point2d>>();
+static auto meshFasesVhandles = std::vector<std::vector<OpenMesh::VertexHandle>>();
 static auto meshs = TriMs();
+static auto meshOri = TriMs();
 
 Eigen::LeastSquaresConjugateGradient <Spm_d> lspg;
 
@@ -158,7 +170,7 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 		laplace_mat.setFromTriplets(triplet.begin(), triplet.end());
 
 		laplace_mat.makeCompressed();
-		lspg.setTolerance(0.0002);
+		lspg.setTolerance(0.0003);
 		lspg.compute(laplace_mat);
 		cache = lspg.solve(delta);
 
@@ -193,27 +205,78 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 	default:break;
 	}
 	if (isDragging) {
-
-
 		delta(count + m, 0) = meshs.point(meshFixedVertexs[m])[0];
 		delta(count + m, 1) = meshs.point(meshFixedVertexs[m])[1];
 
 		cache = lspg.solveWithGuess(delta, cache);
-		std::cout << "#iterations:     " << lspg.iterations() << std::endl;
-		std::cout << "estimated error: " << lspg.error() << std::endl;
-	}
-	auto dst4 = ori.clone();
-	for (size_t i = 0; i != count; ++i) {
-		draw_point(dst4, cv::Point(cache(i, 0), cache(i, 1)), cv::Scalar(0, 0, 255, 0), 2);
-	}
-	for (size_t i = 0; i != fixed_count; ++i) {
-		draw_point(dst4, get_point(meshs, meshFixedVertexs[i]), cv::Scalar(255, 0, 255, 0), 4);
-	}
-	for (auto a : trisegsFin) {
-		draw_line(dst4, cv::Point(cache(a.x, 0), cache(a.x, 1)), cv::Point(cache(a.y, 0), cache(a.y, 1)));
-	}
-	imshow(mainWindowName, dst4);
+		for (size_t i = 0; i != meshVertexs.size(); ++i) {
+			meshs.point(meshVertexs[i])[0] = cache(i, 0);
+			meshs.point(meshVertexs[i])[1] = cache(i, 1);
+		}
+		auto dst4 = ori.clone();
+		const auto size = cv::Size(ori.cols, ori.rows);
+		cv::Mat dst2;
+		dst = ori.clone();
 
+		cv::Mat black(size, src.type(), cv::Scalar::all(0));
+		for (size_t i = 0; i != meshFasesVhandles.size(); ++i) {
+			cv::Mat mask(size, CV_8UC1, cv::Scalar(0));
+			cv::Mat mask2(size, CV_8UC1, cv::Scalar(0));
+
+			auto ori_p = std::vector<cv::Point>{
+				cv::Point(meshFasesOriPoints[i][0].x, meshFasesOriPoints[i][0].y),
+				cv::Point(meshFasesOriPoints[i][1].x, meshFasesOriPoints[i][1].y),
+				cv::Point(meshFasesOriPoints[i][2].x, meshFasesOriPoints[i][2].y)
+			};
+
+			auto aff_p = std::vector<cv::Point>{ 
+				get_pointi(meshs, meshFasesVhandles[i][0]),
+				get_pointi(meshs, meshFasesVhandles[i][1]),
+				get_pointi(meshs, meshFasesVhandles[i][2])
+			};
+
+			auto ori_pf = std::vector<cv::Point2f>{
+				cv::Point2f(meshFasesOriPoints[i][0].x, meshFasesOriPoints[i][0].y),
+				cv::Point2f(meshFasesOriPoints[i][1].x, meshFasesOriPoints[i][1].y),
+				cv::Point2f(meshFasesOriPoints[i][2].x, meshFasesOriPoints[i][2].y)
+			};
+
+			auto aff_pf = std::vector<cv::Point2f>{
+				get_pointf(meshs, meshFasesVhandles[i][0]),
+				get_pointf(meshs, meshFasesVhandles[i][1]),
+				get_pointf(meshs, meshFasesVhandles[i][2])
+			};
+
+			std::vector<std::vector<cv::Point> >  ori_ord{
+				ori_p
+			};
+
+			std::vector<std::vector<cv::Point> >  aff_ord{
+				aff_p
+			};
+
+			drawContours(mask, ori_ord, 0, cv::Scalar(255), CV_FILLED, 8);
+			drawContours(mask2, aff_ord, 0, cv::Scalar(255), CV_FILLED, 8);
+
+			cv::Mat kernel(cv::Size(3, 3), CV_8UC1);
+			kernel.setTo(cv::Scalar(1));
+			dilate(mask, mask, kernel, cv::Point(-1, -1), 4);
+
+			ori.copyTo(dst, mask);
+			auto affTrans = getAffineTransform(ori_pf, aff_pf);
+			warpAffine(dst, dst2, affTrans, size, cv::InterpolationFlags::INTER_AREA);
+			dst2.copyTo(dst4, mask2);
+		}
+		for (size_t i = 0; i != count; ++i) {
+			draw_point(dst4, cv::Point(cache(i, 0), cache(i, 1)), cv::Scalar(0, 0, 255, 0), 2);
+		}
+		for (size_t i = 0; i != fixed_count; ++i) {
+			draw_point(dst4, get_point(meshs, meshFixedVertexs[i]), cv::Scalar(255, 0, 255, 0), 4);
+		}
+		for (auto a : trisegsFin) {
+			draw_line(dst4, cv::Point(cache(a.x, 0), cache(a.x, 1)), cv::Point(cache(a.y, 0), cache(a.y, 1)));
+		}
+	}
 }
 
 void selectPoint(int event, int x, int y, int flags, void* ustc)
@@ -267,7 +330,7 @@ static int triangle_create()
 	auto ctx = triangle_context_create();
 	auto in = new triangleio();
 	reset_triangleio(in);
-	triangle_context_options(ctx, "pq15a1024");
+	triangle_context_options(ctx, "pq15a2048");
 	in->numberofsegments = oriPoints.size();
 	in->numberofpoints = oriPoints.size();
 
@@ -360,6 +423,12 @@ static int triangle_create()
 			trisegsFin.emplace_back(cv::Point{ vertexmark(p2), vertexmark(p3) });
 			trisegsFin.emplace_back(cv::Point{ vertexmark(p3), vertexmark(p1) });
 
+			auto facePoints = std::vector<cv::Point2d>();
+			facePoints.emplace_back(cv::Point2d{ meshs.point(meshVertexs[vertexmark(p1)])[0], meshs.point(meshVertexs[vertexmark(p1)])[1] });
+			facePoints.emplace_back(cv::Point2d{ meshs.point(meshVertexs[vertexmark(p2)])[0], meshs.point(meshVertexs[vertexmark(p2)])[1] });
+			facePoints.emplace_back(cv::Point2d{ meshs.point(meshVertexs[vertexmark(p3)])[0], meshs.point(meshVertexs[vertexmark(p3)])[1] });
+			meshFasesOriPoints.emplace_back(facePoints);
+
 			auto face_vhandles = std::vector<OpenMesh::VertexHandle>();
 			face_vhandles.emplace_back(meshVertexs[vertexmark(p1)]);
 			face_vhandles.emplace_back(meshVertexs[vertexmark(p2)]);
@@ -369,7 +438,6 @@ static int triangle_create()
 			triangleloop.tri = triangletraverse(m);
 			elementnumber++;
 		}
-
 		triangle_context_destroy(ctx);
 
 		free(in->segmentlist);
