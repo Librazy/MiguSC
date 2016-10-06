@@ -117,6 +117,10 @@ cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1, std::vector<Tpt
 
 }
 
+auto vertexsFin = std::vector<cv::Point2d>();
+auto segmentsFin = std::vector<cv::Point>();
+auto trisegsFin = std::vector<cv::Point>();
+
 static int triangle_create()
 {
 	auto ctx = triangle_context_create();
@@ -144,9 +148,6 @@ static int triangle_create()
 
 		in->segmentmarkerlist[i] = 2;
 	}
-	auto vertexsFin = std::vector<cv::Point2d>();
-	auto segmentsFin = std::vector<cv::Point>();
-	auto trisegsFin = std::vector<cv::Point>();
 
 	auto res = triangle_mesh_create(ctx, in);
 
@@ -243,13 +244,9 @@ static int triangle_create()
 
 		auto ans_m = cv::Mat_<double>(cv::Size(2, num + 3), 0);
 
-		auto ori_m = cv::Mat_<double>(cv::Size(2, num), 0);
-
 		auto t_m = cv::Mat_<double>(cv::Size(num, num + 3),0);
 
 		for(auto i = 0;i != num; ++i) {
-			ori_m[meshVertexs[i].idx()][0] = mesh.point(meshVertexs[i])[0];
-			ori_m[meshVertexs[i].idx()][1] = mesh.point(meshVertexs[i])[1];
 			t_m[meshVertexs[i].idx()][meshVertexs[i].idx()] = 1.0;
 			auto triplet = std::vector<Tpt_d>();
 			laplace_cords.emplace_back(laplace_cord(mesh, meshVertexs[i], triplet));
@@ -272,24 +269,6 @@ static int triangle_create()
 		delta_m[num + 2][1] = mesh.point(meshVertexs[2])[1];
 
 		solve(t_m.t() * t_m, t_m.t() * delta_m, ans_m);
-
-		//std::cout << "t_m" << std::endl;
-		//std::cout << t_m << std::endl << std::endl;
-
-		//std::cout << "ori_m" << std::endl;
-		//std::cout << ori_m << std::endl << std::endl;
-
-		////std::cout << "t_m * ori_m" << std::endl;
-		////std::cout << t_m * ori_m << std::endl << std::endl;
-
-		//std::cout << "delta_m" << std::endl;
-		//std::cout << delta_m << std::endl << std::endl;
-
-		//std::cout << "ans_m" << std::endl;
-		//std::cout << ans_m << std::endl << std::endl;
-
-		////std::cout << "t_m * ans_m" << std::endl;
-		////std::cout << t_m * ans_m << std::endl << std::endl;
 
 		cv::namedWindow("x", 1);
 		imshow("x", dst);
