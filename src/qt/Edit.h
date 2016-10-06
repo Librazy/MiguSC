@@ -61,5 +61,6 @@ private slots:
 public:
 	void mousePressEvent(QMouseEvent *) override;
 	void mouseMoveEvent(QMouseEvent *) override;
+	bool callAddPoint(QMouseEvent *m, int type);
 };
 

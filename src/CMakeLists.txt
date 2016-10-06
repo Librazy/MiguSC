@@ -3,7 +3,8 @@ if(POLICY CMP0020)
   cmake_policy(SET CMP0020 NEW)
 endif()
 
-add_library(MiguSC STATIC 
+
+add_library(MiguSC
   main.cpp main.h util.h
 )
 
@@ -27,6 +28,7 @@ endif()
 add_subdirectory(triangle)
 
 add_dependencies(MiguSC triangle)
+add_dependencies(OQtest MiguSC)
 
 target_link_libraries(MiguSC triangle)
 

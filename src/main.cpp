@@ -106,49 +106,49 @@ cv::Point2d laplace_cord(TriMs& meshs, OpenMesh::VertexHandle p1, std::vector<Tp
 
 }
 
-static cv::Point2d get_point(TriMs& meshs, OpenMesh::VertexHandle const& v)
+cv::Point2d get_point(TriMs& meshs, OpenMesh::VertexHandle const& v)
 {
 	return cv::Point2d(meshs.point(v)[0], meshs.point(v)[1]);
 }
 
-static cv::Point2i get_pointi(TriMs& meshs, OpenMesh::VertexHandle const& v)
+cv::Point2i get_pointi(TriMs& meshs, OpenMesh::VertexHandle const& v)
 {
 	return cv::Point2i(static_cast<int>(meshs.point(v)[0]), static_cast<int>(meshs.point(v)[1]));
 }
 
-static cv::Point2f get_pointf(TriMs& meshs, OpenMesh::VertexHandle const& v)
+cv::Point2f get_pointf(TriMs& meshs, OpenMesh::VertexHandle const& v)
 {
 	return cv::Point2f(static_cast<float>(meshs.point(v)[0]), static_cast<float>(meshs.point(v)[1]));
 }
 
-static auto init = false;
+auto init = false;
 
-static auto is_fixed_vertex = std::vector<bool>();
-static auto vertexsFin = std::vector<cv::Point2d>();
-static auto segmentsFin = std::vector<cv::Point>();
-static auto trisegsFin = std::vector<cv::Point>();
-static auto laplace_cords = std::vector<cv::Point2d>();
+auto is_fixed_vertex = std::vector<bool>();
+auto vertexsFin = std::vector<cv::Point2d>();
+auto segmentsFin = std::vector<cv::Point>();
+auto trisegsFin = std::vector<cv::Point>();
+auto laplace_cords = std::vector<cv::Point2d>();
 
 auto delta = Eigen::MatrixX2d();
 auto cache = Eigen::MatrixX2d();
 auto laplace_mat = Spm_d();
 
-static auto meshVertexs = std::vector<OpenMesh::VertexHandle>();
-static auto meshFixedVertexs = std::vector<OpenMesh::VertexHandle>();
-static auto meshFases = std::vector<OpenMesh::FaceHandle>(); 
-static auto meshFasesOriPoints = std::vector<std::vector<cv::Point2d>>();
-static auto meshFasesVhandles = std::vector<std::vector<OpenMesh::VertexHandle>>();
-static auto meshs = TriMs();
-static auto meshOri = TriMs();
+auto meshVertexs = std::vector<OpenMesh::VertexHandle>();
+auto meshFixedVertexs = std::vector<OpenMesh::VertexHandle>();
+auto meshFases = std::vector<OpenMesh::FaceHandle>(); 
+auto meshFasesOriPoints = std::vector<std::vector<cv::Point2d>>();
+auto meshFasesVhandles = std::vector<std::vector<OpenMesh::VertexHandle>>();
+auto meshs = TriMs();
+auto meshOri = TriMs();
 
 Eigen::LeastSquaresConjugateGradient <Spm_d> lspg;
 
-static void setImg(cv::Mat& img)
+void setImg(cv::Mat& img)
 {
 	ori = img.clone();
 }
 
-static cv::Mat dragPoint(int event, int x, int y)
+cv::Mat dragPoint(int event, int x, int y)
 {
 	const auto count = meshVertexs.size();
 	const auto fixed_count = std::count(is_fixed_vertex.begin(), is_fixed_vertex.end(), true);
@@ -285,7 +285,7 @@ static cv::Mat dragPoint(int event, int x, int y)
 	return dst4;
 }
 
-static std::pair<bool, cv::Mat> selectPoint(int event, int x, int y)
+std::pair<bool, cv::Mat> selectPoint(int event, int x, int y)
 {
 	const auto count = meshVertexs.size();
 	const auto fixed_count = std::count(is_fixed_vertex.begin(), is_fixed_vertex.end(), true);
@@ -329,7 +329,7 @@ static std::pair<bool, cv::Mat> selectPoint(int event, int x, int y)
 	return std::make_pair(false, dst4);
 }
 
-static int triangle_create()
+int triangle_create()
 {
 	auto ctx = triangle_context_create();
 	auto in = new triangleio();
@@ -456,7 +456,7 @@ static int triangle_create()
 	return res;
 }
 
-static std::pair<bool, cv::Mat> addPoint(int event, int x, int y)
+std::pair<bool, cv::Mat> addPoint(int event, int x, int y)
 {
 	cv::Point pt;
 	std::string temp;
@@ -464,7 +464,7 @@ static std::pair<bool, cv::Mat> addPoint(int event, int x, int y)
 	auto clrPoint = cv::Scalar(255, 0, 0, 0);
 	auto clrText = cv::Scalar(255, 200, 0, 0);
 	if (event == CV_EVENT_MOUSEMOVE) {
-		src = dst.clone();
+		src = ori.clone();
 
 		x = bound(x, 0, src.cols - 1);
 		y = bound(y, 0, src.rows - 1);
@@ -499,23 +499,19 @@ static std::pair<bool, cv::Mat> addPoint(int event, int x, int y)
 		if (points.size() >= 1) {
 			draw_line(src, points[points.size() - 1], pt);
 		}
-		imshow(mainWindowName, src);
 	} else if (event == CV_EVENT_LBUTTONDOWN) {
 
 		pt = cv::Point(x, y);
 
 		if (points.size() >= 3 && if_in_range(pt, points)) {
-			imshow(mainWindowName, src);
-			cv::setMouseCallback(mainWindowName, nullptr, nullptr);
 			oriPoints.insert(oriPoints.cend(), points.begin(), points.end());
 			triangle_create();
 			return std::make_pair(true, src);
-		} else {
-			points.push_back(pt);
-			temp = string_format("%d (%d,%d)", n, pt.x, pt.y);
-			labels.emplace_back(imgText(temp, pt, clrText));
-			n++;
 		}
+		points.push_back(pt);
+		temp = string_format("%d (%d,%d)", n, pt.x, pt.y);
+		labels.emplace_back(imgText(temp, pt, clrText));
+		n++;
 	}else if (event == CV_EVENT_RBUTTONDOWN) {
 		if (!points.empty()) {
 			points.pop_back();

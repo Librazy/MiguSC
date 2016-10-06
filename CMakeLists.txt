@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.6)
 project(MiguSC)
 
+include_external_msproject(OQtest ${MiguSC_SOURCE_DIR}/src/qt/QtGui.vcxproj)
+
 if(POLICY CMP0020)
   cmake_policy(SET CMP0020 OLD)
 endif()
@@ -53,7 +55,5 @@ if(MSVC)
 endif()
 
 set (CMAKE_CXX_STANDARD 14)
-include_external_msproject(OQtest ${MiguSC_SOURCE_DIR}/src/qt/QtGui.vcxproj)
-add_dependencies(OQtest MiguSC)
 include_directories(${MiguSC_SOURCE_DIR}/src)
 add_subdirectory(src)

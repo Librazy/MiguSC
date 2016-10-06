@@ -2,8 +2,9 @@
 
 #include <opencv2/core.hpp>
 #include <utility>
+#define EXPORTS __declspec(dllexport)
 
-static void setImg(cv::Mat& img);
-static std::pair<bool, cv::Mat> addPoint(int event, int x, int y);
-static std::pair<bool, cv::Mat> selectPoint(int event, int x, int y);
-static cv::Mat dragPoint(int event, int x, int y);
+EXPORTS void setImg(cv::Mat& img);
+EXPORTS std::pair<bool, cv::Mat> addPoint(int event, int x, int y);
+EXPORTS std::pair<bool, cv::Mat> selectPoint(int event, int x, int y);
+EXPORTS cv::Mat dragPoint(int event, int x, int y);

@@ -1,4 +1,5 @@
 #include <main.h>
+#include <opencv2/highgui.hpp>
 #include "Edit.h"
 #include "Show.h"
 #include "global.h"
@@ -8,7 +9,7 @@ Edit::Edit(QWidget *parent)
 {
 	ui.setupUi(this);
 	step = 1;
-	
+	this->setMouseTracking(true);
 	this->setWindowTitle("Edit");
 	//´°¿Ú´óÐ¡
 	this->setMaximumSize(1000, 600);
@@ -23,6 +24,9 @@ Edit::Edit(QWidget *parent)
 	editarea = QImage(imgSrc);
 	imglabel->setPixmap(QPixmap::fromImage(editarea));	
 	imglabel->show();	
+	imglabel->setMouseTracking(true);
+	auto cvimg = imread(imgSrc.toStdString());
+	setImg(cvimg);
 
 	insRect = new QLabel(this);
 	insRect->setGeometry(800, 30, 160, 460);
@@ -87,7 +91,6 @@ void Edit::editAnchor()
 	finish2->show();
 	connect(finish2, SIGNAL(released()), this, SLOT(step2()));
 	connect(finish2, SIGNAL(pressed()), this, SLOT(StyleChange2()));
-
 }
 void Edit::editDeformation() 
 {
@@ -150,29 +153,51 @@ void Edit::StyleChange3() const
 {
 	finish3->setStyleSheet("font-family:'Microsoft JhengHei UI';color:#fff;background: rgb(255,20,10);font-size:18px;border:1px solid #fff;border-radius:4px;");
 }
+
+QPoint labelPos(40,30);
+
+bool Edit::callAddPoint(QMouseEvent *m, int type)
+{
+	Px = (static_cast<double>(m->pos().x()) - labelPos.x()) / static_cast<double>(imglabel->size().width());
+	Py = (static_cast<double>(m->pos().y()) - labelPos.y()) / static_cast<double>(imglabel->size().height());
+	auto imgx = static_cast<int>(Px * editarea.size().width());
+	auto imgy = static_cast<int>(Py * editarea.size().height());
+	auto add = addPoint(type, imgx, imgy);
+	auto pic = add.second;
+	cv::Mat rgb;
+	cvtColor(pic, rgb, CV_BGR2RGB);
+	auto img = QImage(static_cast<const unsigned char*>(rgb.data), rgb.cols, rgb.rows, QImage::Format_RGB888);
+	imglabel->setPixmap(QPixmap::fromImage(img));
+	return add.first;
+}
+
 void Edit::mousePressEvent(QMouseEvent *m)
 {
-	QPoint labelPos(40,30);
 	QRect labelRect = QRect(labelPos, imglabel->size());
 
 	if (labelRect.contains(m->pos())) {
 		
 		if (m->buttons() & Qt::LeftButton) {
 
-			if (step == 2)
+			if (step == 1)
 			{
-				Px = (static_cast<double>(m->pos().x()) - labelPos.x()) / static_cast<double>(imglabel->size().width());
-				Py = (static_cast<double>(m->pos().y()) - labelPos.y()) / static_cast<double>(imglabel->size().height());
-				QString para = "Num of Points: 0<br/>X:" + QString::number(int(Px*imglabel->size().width())) + ";    Y: " + QString::number(int(Py*imglabel->size().height())) + "<br/>Width:  740;   Height: 540<br/>";
-				parameter->setText(para);
+				callAddPoint(m,CV_EVENT_LBUTTONDOWN);
 			}
-
-			
+		} else if (m->buttons() & Qt::RightButton) {
+			if (step == 1)
+			{
+				callAddPoint(m, CV_EVENT_RBUTTONDOWN);
+			}
 		}
-	}
+	} 
 }
 void Edit::mouseMoveEvent(QMouseEvent *m)
 {
-
+	if (step == 1)
+	{
+		if (!(m->buttons() & Qt::LeftButton)) {
+			callAddPoint(m,CV_EVENT_MOUSEMOVE);
+		}
+	}
 }
 
