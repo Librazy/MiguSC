@@ -54,5 +54,6 @@ endif()
 
 set (CMAKE_CXX_STANDARD 14)
 include_external_msproject(OQtest ${MiguSC_SOURCE_DIR}/src/qt/QtGui.vcxproj)
+add_dependencies(OQtest MiguSC)
 include_directories(${MiguSC_SOURCE_DIR}/src)
 add_subdirectory(src)

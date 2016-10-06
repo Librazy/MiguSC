@@ -3,7 +3,8 @@ if(POLICY CMP0020)
   cmake_policy(SET CMP0020 NEW)
 endif()
 
-add_executable(MiguSC main.cpp util.h
+add_library(MiguSC STATIC 
+  main.cpp main.h util.h
 )
 
 if(WIN32)

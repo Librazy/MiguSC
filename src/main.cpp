@@ -3,9 +3,9 @@
 #endif
 
 #include "util.h"
+#include "main.h"
 #include "triangle/util.h"
 
-#include <opencv2/imgcodecs.hpp>
 #include <vector>
 
 cv::Mat src;
@@ -143,7 +143,12 @@ static auto meshOri = TriMs();
 
 Eigen::LeastSquaresConjugateGradient <Spm_d> lspg;
 
-void dragPoint(int event, int x, int y, int flags, void* ustc)
+static void setImg(cv::Mat& img)
+{
+	ori = img.clone();
+}
+
+static cv::Mat dragPoint(int event, int x, int y)
 {
 	const auto count = meshVertexs.size();
 	const auto fixed_count = std::count(is_fixed_vertex.begin(), is_fixed_vertex.end(), true);
@@ -204,6 +209,7 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 		break;
 	default:break;
 	}
+	auto dst4 = ori.clone();
 	if (isDragging) {
 		delta(count + m, 0) = meshs.point(meshFixedVertexs[m])[0];
 		delta(count + m, 1) = meshs.point(meshFixedVertexs[m])[1];
@@ -213,12 +219,11 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 			meshs.point(meshVertexs[i])[0] = cache(i, 0);
 			meshs.point(meshVertexs[i])[1] = cache(i, 1);
 		}
-		auto dst4 = ori.clone();
 		const auto size = cv::Size(ori.cols, ori.rows);
 		cv::Mat dst2;
 		dst = ori.clone();
 
-		cv::Mat black(size, src.type(), cv::Scalar::all(0));
+		static const cv::Mat black(size, src.type(), cv::Scalar::all(0));
 		for (size_t i = 0; i != meshFasesVhandles.size(); ++i) {
 			cv::Mat mask(size, CV_8UC1, cv::Scalar(0));
 			cv::Mat mask2(size, CV_8UC1, cv::Scalar(0));
@@ -267,20 +272,20 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 			warpAffine(dst, dst2, affTrans, size, cv::InterpolationFlags::INTER_AREA);
 			dst2.copyTo(dst4, mask2);
 		}
-		for (size_t i = 0; i != count; ++i) {
-			draw_point(dst4, cv::Point(cache(i, 0), cache(i, 1)), cv::Scalar(0, 0, 255, 0), 2);
-		}
-		for (size_t i = 0; i != fixed_count; ++i) {
-			draw_point(dst4, get_point(meshs, meshFixedVertexs[i]), cv::Scalar(255, 0, 255, 0), 4);
-		}
-		for (auto a : trisegsFin) {
-			draw_line(dst4, cv::Point(cache(a.x, 0), cache(a.x, 1)), cv::Point(cache(a.y, 0), cache(a.y, 1)));
-		}
-		imshow(mainWindowName, dst4);
 	}
+	for (size_t i = 0; i != count; ++i) {
+		draw_point(dst4, cv::Point(cache(i, 0), cache(i, 1)), cv::Scalar(0, 0, 255, 0), 2);
+	}
+	for (size_t i = 0; i != fixed_count; ++i) {
+		draw_point(dst4, get_point(meshs, meshFixedVertexs[i]), cv::Scalar(255, 0, 255, 0), 4);
+	}
+	for (auto a : trisegsFin) {
+		draw_line(dst4, cv::Point(cache(a.x, 0), cache(a.x, 1)), cv::Point(cache(a.y, 0), cache(a.y, 1)));
+	}
+	return dst4;
 }
 
-void selectPoint(int event, int x, int y, int flags, void* ustc)
+static std::pair<bool, cv::Mat> selectPoint(int event, int x, int y)
 {
 	const auto count = meshVertexs.size();
 	const auto fixed_count = std::count(is_fixed_vertex.begin(), is_fixed_vertex.end(), true);
@@ -304,9 +309,7 @@ void selectPoint(int event, int x, int y, int flags, void* ustc)
 			break;
 		case CV_EVENT_RBUTTONDOWN:
 			if (fixed_count < 3)break;
-			cv::setMouseCallback(mainWindowName, nullptr, nullptr);
-			cv::setMouseCallback(mainWindowName, dragPoint, nullptr);
-			break;
+			return std::make_pair(true, dst4);
 		default:break;
 	}
 	for (size_t i = 0; i != count; ++i) {
@@ -323,7 +326,7 @@ void selectPoint(int event, int x, int y, int flags, void* ustc)
 			get_point(meshs,meshVertexs[a.x]),
 			get_point(meshs,meshVertexs[a.y]));
 	}
-	imshow(mainWindowName, dst4);
+	return std::make_pair(false, dst4);
 }
 
 static int triangle_create()
@@ -453,7 +456,7 @@ static int triangle_create()
 	return res;
 }
 
-static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
+static std::pair<bool, cv::Mat> addPoint(int event, int x, int y)
 {
 	cv::Point pt;
 	std::string temp;
@@ -506,7 +509,7 @@ static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
 			cv::setMouseCallback(mainWindowName, nullptr, nullptr);
 			oriPoints.insert(oriPoints.cend(), points.begin(), points.end());
 			triangle_create();
-			cv::setMouseCallback(mainWindowName, selectPoint, nullptr);
+			return std::make_pair(true, src);
 		} else {
 			points.push_back(pt);
 			temp = string_format("%d (%d,%d)", n, pt.x, pt.y);
@@ -519,37 +522,5 @@ static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
 			labels.pop_back();
 		}
 	}
-}
-
-#ifdef _MSC_VER
-#ifdef _DEBUG
-int main()
-#else
-int WinMain(HINSTANCE hInstance,
-	HINSTANCE hPrevInstance,
-	LPTSTR    lpCmdLine,
-	int       nCmdShow)
-#endif // !DEBUG
-
-#elif
-int main()
-#endif// _MSC_VER
-{
-
-	cv::namedWindow(mainWindowName, 1);
-
-	ori = cv::imread("qwe.jpg");
-	src = dst = ori.clone();
-
-	imshow(mainWindowName, src);
-	cv::setMouseCallback(mainWindowName, mouse_event_handle, nullptr);
-
-	while(cv::waitKey(0) != 27) {
-		
-	}
-
-	cv::destroyAllWindows();
-
-
-	return 0;
+	return std::make_pair(false, src);
 }
