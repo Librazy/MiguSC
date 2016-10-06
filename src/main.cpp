@@ -133,9 +133,9 @@ Eigen::LeastSquaresConjugateGradient <Spm_d> lspg;
 
 void dragPoint(int event, int x, int y, int flags, void* ustc)
 {
+	const auto count = meshVertexs.size();
+	const auto fixed_count = std::count(is_fixed_vertex.begin(), is_fixed_vertex.end(), true);
 	if (!init) {
-		const auto count = meshVertexs.size();
-		const auto fixed_count = std::count(is_fixed_vertex.begin(), is_fixed_vertex.end(), true);
 		auto fixed_index = 0;
 		auto triplet = std::vector<Tpt_d>();
 
@@ -193,20 +193,34 @@ void dragPoint(int event, int x, int y, int flags, void* ustc)
 	default:break;
 	}
 	if (isDragging) {
-		auto num = vertexsFin.size();
 
-		delta(num + m, 0) = meshs.point(meshFixedVertexs[m])[0];
-		delta(num + m, 1) = meshs.point(meshFixedVertexs[m])[1];
+
+		delta(count + m, 0) = meshs.point(meshFixedVertexs[m])[0];
+		delta(count + m, 1) = meshs.point(meshFixedVertexs[m])[1];
 
 		cache = lspg.solveWithGuess(delta, cache);
 		std::cout << "#iterations:     " << lspg.iterations() << std::endl;
 		std::cout << "estimated error: " << lspg.error() << std::endl;
 	}
+	auto dst4 = ori.clone();
+	for (size_t i = 0; i != count; ++i) {
+		draw_point(dst4, cv::Point(cache(i, 0), cache(i, 1)), cv::Scalar(0, 0, 255, 0), 2);
+	}
+	for (size_t i = 0; i != fixed_count; ++i) {
+		draw_point(dst4, get_point(meshs, meshFixedVertexs[i]), cv::Scalar(255, 0, 255, 0), 4);
+	}
+	for (auto a : trisegsFin) {
+		draw_line(dst4, cv::Point(cache(a.x, 0), cache(a.x, 1)), cv::Point(cache(a.y, 0), cache(a.y, 1)));
+	}
+	imshow(mainWindowName, dst4);
+
 }
 
 void selectPoint(int event, int x, int y, int flags, void* ustc)
 {
 	const auto count = meshVertexs.size();
+	const auto fixed_count = std::count(is_fixed_vertex.begin(), is_fixed_vertex.end(), true);
+
 	auto pt = cv::Point2d(x, y);
 	auto min = norm(pt - get_point(meshs,meshVertexs[0]));
 	auto dst4 = src.clone();
@@ -225,7 +239,6 @@ void selectPoint(int event, int x, int y, int flags, void* ustc)
 			}
 			break;
 		case CV_EVENT_RBUTTONDOWN:
-			const auto fixed_count = std::count(is_fixed_vertex.begin(), is_fixed_vertex.end(), true);
 			if (fixed_count < 3)break;
 			cv::setMouseCallback(mainWindowName, nullptr, nullptr);
 			cv::setMouseCallback(mainWindowName, dragPoint, nullptr);
