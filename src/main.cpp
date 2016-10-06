@@ -16,99 +16,6 @@ std::vector<cv::Point2d> points;
 std::vector<cv::Point2d> oriPoints;
 std::vector<imgText> labels;
 
-//
-////邻接顶点的余切权重计算
-//void CotangentWeights(TriMs*TMesh, int vIndex, std::vector<double>&vweight, double &WeightSum, bool bNormalize)//计算一阶邻近点的各自cottan权重
-//{
-//	int NeighborNumber = TMesh->neighbors[vIndex].size();
-//	vweight.resize(NeighborNumber);
-//	WeightSum = 0;
-//	std::vector<int>&NeiV = TMesh->neighbors[vIndex];
-//	for (int i = 0; i < NeighborNumber; i++)
-//	{
-//		int j_nei = NeiV[i];
-//		std::vector<int>tempnei;
-//		Co_neighbor(TMesh, vIndex, j_nei, tempnei);
-//		double cotsum = 0.0;
-//		for (int j = 0; j < tempnei.size(); j++)
-//		{
-//			vec vivo = TMesh->vertices[vIndex] - TMesh->vertices[tempnei[j]];
-//			vec vjvo = TMesh->vertices[j_nei] - TMesh->vertices[tempnei[j]];
-//			double dotvector = vivo DOT vjvo;
-//			dotvector = dotvector / sqrt(len2(vivo)*len2(vjvo) - dotvector*dotvector);
-//			cotsum += dotvector;
-//		}
-//		vweight[i] = cotsum / 2.0;
-//		WeightSum += vweight[i];
-//	}
-//
-//	if (bNormalize)
-//	{
-//		for (int k = 0; k < NeighborNumber; ++k)
-//		{
-//			vweight[k] /= WeightSum;
-//		}
-//		WeightSum = 1.0;
-//	}
-//}
-//
-////获取两顶点的共同邻接顶点
-//void Co_neighbor(TriMs *Tmesh, int u_id, int v_id, std::vector<int>&co_neiv)
-//{
-//	Tmesh->need_adjacentedges();
-//	std::vector<int>&u_id_ae = Tmesh->adjancetedge[u_id];
-//	int en = u_id_ae.size();
-//	Tedge Co_Edge;
-//	for (int i = 0; i < en; i++)
-//	{
-//		Tedge &ae = Tmesh->m_edges[u_id_ae[i]];
-//		int opsi = ae.opposite_vertex(u_id);
-//		if (opsi == v_id)
-//		{
-//			Co_Edge = ae;
-//			break;
-//		}
-//	}
-//	for (int i = 0; i < Co_Edge.m_adjacent_faces.size(); i++)
-//	{
-//		TriMs::Face af = Tmesh->faces[Co_Edge.m_adjacent_faces[i]];
-//		for (int j = 0; j < 3; j++)
-//		{
-//			if ((af[j] != u_id) && (af[j] != v_id))
-//			{
-//				co_neiv.push_back(af[j]);
-//			}
-//		}
-//	}
-//}
-////计算拉普拉斯矩阵
-//void Get_Laplace_Matrix()
-//{
-//	int vn = m_BaseMesh->vertices.size();
-//	int count0 = 0;
-//	std::vector<int>begin_N(vn);
-//	for (int i = 0; i < vn; i++)
-//	{
-//		begin_N[i] = count0;
-//		count0 += m_BaseMesh->neighbors[i].size() + 1;
-//	}
-//	typedef Eigen::Triplet<double> T;
-//	std::vector<T> tripletList(count0);
-//	for (int i = 0; i < vn; i++)
-//	{
-//		VProperty & vi = m_vertices[i];
-//		tripletList[begin_N[i]] = T(i, i, -vi.VSumWeight);
-//		int nNbrs = vi.VNeighbors.size();
-//		for (int k = 0; k < nNbrs; ++k)
-//		{
-//			tripletList[begin_N[i] + k + 1] = T(vi.VNeighbors[k], i, vi.VNeiWeight[k]);
-//		}
-//	}
-//	m_Laplace_Matrix.resize(vn, vn);
-//	m_Laplace_Matrix.setFromTriplets(tripletList.begin(), tripletList.end());
-//
-//}
-
 double cot(OpenMeshT::Point p1, OpenMeshT::Point p2, OpenMeshT::Point pc)
 {
 	auto cp1 = cv::Point2d(p1[0], p1[1]);
@@ -128,49 +35,49 @@ double cot(OpenMeshT::Point p1, OpenMeshT::Point p2, OpenMeshT::Point pc)
 	return dot / sqrt( 1 - sqrdot);
 }
 
-std::vector<double> cot_weights(TriMs& mesh,OpenMesh::VertexHandle v1, OpenMesh::VertexHandle v2, std::vector<OpenMesh::VertexHandle> vcs)
+std::vector<double> cot_weights(TriMs& meshs,OpenMesh::VertexHandle v1, OpenMesh::VertexHandle v2, std::vector<OpenMesh::VertexHandle> vcs)
 {
-	auto p1 = mesh.point(v1);
-	auto p2 = mesh.point(v2);
+	auto p1 = meshs.point(v1);
+	auto p2 = meshs.point(v2);
 	auto w = std::vector<double>();
 	for(auto p : vcs) {
-		w.emplace_back(cot(p1, p2, mesh.point(p)));
+		w.emplace_back(cot(p1, p2, meshs.point(p)));
 	}
 	return w;
 }
 
-std::vector<OpenMesh::VertexHandle> nerghbor(TriMs& mesh, OpenMesh::VertexHandle p)
+std::vector<OpenMesh::VertexHandle> nerghbor(TriMs& meshs, OpenMesh::VertexHandle p)
 {
 	auto res = std::vector<OpenMesh::VertexHandle>();
-	for (auto pn : mesh.voh_range(p)) {
-		res.emplace_back(mesh.to_vertex_handle(pn));
+	for (auto pn : meshs.voh_range(p)) {
+		res.emplace_back(meshs.to_vertex_handle(pn));
 	}
 	return res;
 }
 
-std::vector<OpenMesh::VertexHandle> co_nerghbor(TriMs& mesh, OpenMesh::VertexHandle p1, OpenMesh::VertexHandle p2)
+std::vector<OpenMesh::VertexHandle> co_nerghbor(TriMs& meshs, OpenMesh::VertexHandle p1, OpenMesh::VertexHandle p2)
 {
 	auto res = std::vector<OpenMesh::VertexHandle>();
-	for (auto p1n : mesh.voh_range(p1))
-	for (auto p2n : mesh.voh_range(p2)) {
-		if(mesh.to_vertex_handle(p1n).idx() == mesh.to_vertex_handle(p2n).idx() ) {
-			res.emplace_back(mesh.to_vertex_handle(p1n));
+	for (auto p1n : meshs.voh_range(p1))
+	for (auto p2n : meshs.voh_range(p2)) {
+		if(meshs.to_vertex_handle(p1n).idx() == meshs.to_vertex_handle(p2n).idx() ) {
+			res.emplace_back(meshs.to_vertex_handle(p1n));
 		}
 	}
 	return res;
 }
 
-double cot_weight(TriMs& mesh, OpenMesh::VertexHandle p1, OpenMesh::VertexHandle p2)
+double cot_weight(TriMs& meshs, OpenMesh::VertexHandle p1, OpenMesh::VertexHandle p2)
 {
-	auto con = co_nerghbor(mesh, p1, p2);
-	auto ws = cot_weights(mesh, p1, p2, con);
+	auto con = co_nerghbor(meshs, p1, p2);
+	auto ws = cot_weights(meshs, p1, p2, con);
 	return accumulate(ws.begin(), ws.end(), 0.0);
 }
 
-cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1, std::vector<Tpt_d>& out_triplet)
+cv::Point2d laplace_cord(TriMs& meshs, OpenMesh::VertexHandle p1, std::vector<Tpt_d>& out_triplet)
 {
-	auto ns = nerghbor(mesh, p1);
-	auto mp1 = mesh.point(p1);
+	auto ns = nerghbor(meshs, p1);
+	auto mp1 = meshs.point(p1);
 	auto cp1 = cv::Point2d(mp1[0], mp1[1]);
 	auto ncords = std::vector<cv::Point2d>();
 	auto nweigs = std::vector<double>();
@@ -179,9 +86,9 @@ cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1, std::vector<Tpt
 	out_triplet.emplace_back(Tpt_d(p1.idx(), p1.idx(), 1));
 
 	for(auto n : ns) {
-		auto p = mesh.point(n);
+		auto p = meshs.point(n);
 		ncords.emplace_back(cv::Point2d(p[0], p[1]));
-		nweigs.emplace_back(cot_weight(mesh, p1, n));
+		nweigs.emplace_back(cot_weight(meshs, p1, n));
 	}
 
 	auto s = accumulate(nweigs.begin(), nweigs.end(), 0.0);
@@ -195,15 +102,151 @@ cv::Point2d laplace_cord(TriMs& mesh, OpenMesh::VertexHandle p1, std::vector<Tpt
 	for (size_t i = 0; i != num; ++i) {
 		x += nweigs[i] * ncords[i] / s;
 	}
-	//for (size_t i = 0; i != num; ++i) {
-	//	out_triplet.emplace_back(Tpt_d(p1.idx(), ns[i].idx(), -1.0 / num));
-	//}
-	//	x = cv::Point2d(0.0, 0.0);
-	//for (size_t i = 0; i != num; ++i) {
-	//	x += ncords[i] / static_cast<double>(ncords.size());
-	//}
 	return cp1 - x;
 
+}
+
+static cv::Point2d get_point(TriMs& meshs, OpenMesh::VertexHandle const& v)
+{
+	return cv::Point2d(meshs.point(v)[0], meshs.point(v)[1]);
+}
+
+static auto init = false;
+
+static auto is_fixed_vertex = std::vector<bool>();
+static auto vertexsFin = std::vector<cv::Point2d>();
+static auto segmentsFin = std::vector<cv::Point>();
+static auto trisegsFin = std::vector<cv::Point>();
+static auto laplace_cords = std::vector<cv::Point2d>();
+
+auto delta = Eigen::MatrixX2d();
+auto cache = Eigen::MatrixX2d();
+auto laplace_mat = Spm_d();
+
+static auto meshVertexs = std::vector<OpenMesh::VertexHandle>();
+static auto meshFixedVertexs = std::vector<OpenMesh::VertexHandle>();
+static auto meshFases = std::vector<OpenMesh::FaceHandle>(); 
+static auto meshFasesVhandles = std::vector<std::vector<OpenMesh::VertexHandle>>(); 
+static auto meshs = TriMs();
+
+Eigen::LeastSquaresConjugateGradient <Spm_d> lspg;
+
+void dragPoint(int event, int x, int y, int flags, void* ustc)
+{
+	if (!init) {
+		const auto count = meshVertexs.size();
+		const auto fixed_count = std::count(is_fixed_vertex.begin(), is_fixed_vertex.end(), true);
+		auto fixed_index = 0;
+		auto triplet = std::vector<Tpt_d>();
+
+		delta.resize(count + fixed_count, 2);
+		laplace_mat.resize(count + fixed_count, count);
+
+		for (size_t i = 0; i != count; ++i) {
+			laplace_cords.emplace_back(laplace_cord(meshs, meshVertexs[i], triplet));
+			delta(i, 0) = laplace_cords.back().x;
+			delta(i, 1) = laplace_cords.back().y;
+			if (is_fixed_vertex[i]) {
+				meshFixedVertexs.push_back(meshVertexs[i]);
+				triplet.emplace_back(Tpt_d(count + fixed_index, i, 1));
+				delta(count + fixed_index, 0) = get_point(meshs, meshVertexs[i]).x;
+				delta(count + fixed_index, 1) = get_point(meshs, meshVertexs[i]).y;
+				++fixed_index;
+			}
+		}
+
+		laplace_mat.setFromTriplets(triplet.begin(), triplet.end());
+
+		laplace_mat.makeCompressed();
+		lspg.setTolerance(0.0002);
+		lspg.compute(laplace_mat);
+		cache = lspg.solve(delta);
+
+		init = true;
+	}
+	static auto isDragging = false;
+	static size_t m = 0;
+	auto pt = cv::Point2d(x, y);
+	auto min = norm(pt - get_point(meshs, meshFixedVertexs[0]));
+
+	switch (event) {
+	case CV_EVENT_MOUSEMOVE:
+		if (isDragging) {
+			meshs.point(meshFixedVertexs[m])[0] = pt.x;
+			meshs.point(meshFixedVertexs[m])[1] = pt.y;
+		}
+
+		break;
+	case CV_EVENT_LBUTTONDOWN:
+		for (size_t i = 0; i != meshFixedVertexs.size(); ++i)
+		{
+			if (min >= norm(pt - get_point(meshs, meshFixedVertexs[i]))) {
+				m = i;
+				min = norm(pt - get_point(meshs, meshFixedVertexs[m]));
+			}
+		}
+		isDragging = true;
+		break;
+	case CV_EVENT_LBUTTONUP:
+		isDragging = false;
+		break;
+	default:break;
+	}
+	if (isDragging) {
+		auto num = vertexsFin.size();
+
+		delta(num + m, 0) = meshs.point(meshFixedVertexs[m])[0];
+		delta(num + m, 1) = meshs.point(meshFixedVertexs[m])[1];
+
+		cache = lspg.solveWithGuess(delta, cache);
+		std::cout << "#iterations:     " << lspg.iterations() << std::endl;
+		std::cout << "estimated error: " << lspg.error() << std::endl;
+	}
+}
+
+void selectPoint(int event, int x, int y, int flags, void* ustc)
+{
+	const auto count = meshVertexs.size();
+	auto pt = cv::Point2d(x, y);
+	auto min = norm(pt - get_point(meshs,meshVertexs[0]));
+	auto dst4 = src.clone();
+	size_t m = 0;
+	switch (event) {
+		case CV_EVENT_LBUTTONDOWN:
+			for (size_t i = 0; i != count; ++i)
+			{
+				if (min >= norm(pt - get_point(meshs,meshVertexs[i]))) {
+					m = i;
+					min = norm(pt - get_point(meshs,meshVertexs[m]));
+				}
+			}
+			if (min < 30) {
+				is_fixed_vertex[m] = !is_fixed_vertex[m];
+			}
+			break;
+		case CV_EVENT_RBUTTONDOWN:
+			const auto fixed_count = std::count(is_fixed_vertex.begin(), is_fixed_vertex.end(), true);
+			if (fixed_count < 3)break;
+			cv::setMouseCallback(mainWindowName, nullptr, nullptr);
+			cv::setMouseCallback(mainWindowName, dragPoint, nullptr);
+			break;
+		default:break;
+	}
+	for (size_t i = 0; i != count; ++i) {
+		draw_point(
+			dst4, 
+			get_point(meshs,meshVertexs[i]),
+			is_fixed_vertex[i]? cv::Scalar(0,255,0) : cv::Scalar(0,255,255), 
+			4);
+	}
+
+	for (auto a : trisegsFin) {
+		draw_line(
+			dst4,
+			get_point(meshs,meshVertexs[a.x]),
+			get_point(meshs,meshVertexs[a.y]));
+	}
+	imshow(mainWindowName, dst4);
 }
 
 static int triangle_create()
@@ -211,14 +254,13 @@ static int triangle_create()
 	auto ctx = triangle_context_create();
 	auto in = new triangleio();
 	reset_triangleio(in);
-	triangle_context_options(ctx, "pq15a256");
+	triangle_context_options(ctx, "pq15a1024");
 	in->numberofsegments = oriPoints.size();
 	in->numberofpoints = oriPoints.size();
 
 	in->segmentlist = static_cast<int *>(malloc(in->numberofsegments * 2 * sizeof(int)));
 	in->segmentmarkerlist = static_cast<int *>(malloc(in->numberofsegments * sizeof(int)));
-
-
+	
 	in->pointlist = static_cast<REAL *>(malloc(in->numberofpoints * 2 * sizeof(REAL)));
 	in->pointmarkerlist = static_cast<int *>(malloc(in->numberofpoints * sizeof(int)));
 
@@ -233,25 +275,19 @@ static int triangle_create()
 
 		in->segmentmarkerlist[i] = 2;
 	}
-	auto vertexsFin = std::vector<cv::Point2d>();
-	auto segmentsFin = std::vector<cv::Point>();
-	auto trisegsFin = std::vector<cv::Point>();
 
 	auto res = triangle_mesh_create(ctx, in);
 
 	if (!res) {
-		auto mesh = TriMs();
-		auto meshVertexs = std::vector<OpenMesh::VertexHandle>();
-		auto meshFases = std::vector<OpenMesh::FaceHandle>();
 
-		mesh.request_face_normals();
-		mesh.request_face_status();
-		mesh.request_vertex_normals();
-		mesh.request_vertex_texcoords2D();
-		mesh.request_vertex_status();
+		meshs.request_face_normals();
+		meshs.request_face_status();
+		meshs.request_vertex_normals();
+		meshs.request_vertex_texcoords2D();
+		meshs.request_vertex_status();
 
-		mesh.request_vertex_colors();
-		mesh.request_edge_status();
+		meshs.request_vertex_colors();
+		meshs.request_edge_status();
 
 		struct osub subsegloop;
 		vertex endpoint1, endpoint2;
@@ -271,8 +307,8 @@ static int triangle_create()
 		while (vertexloop != static_cast<vertex>(nullptr)) {
 			if (!b->jettison || vertextype(vertexloop) != UNDEADVERTEX) {
 				vertexsFin.emplace_back(cv::Point2d{ vertexloop[0], vertexloop[1] });
-
-				meshVertexs.emplace_back(mesh.add_vertex(OpenMeshT::Point(vertexloop[0], vertexloop[1], 0)));
+				is_fixed_vertex.emplace_back(false);
+				meshVertexs.emplace_back(meshs.add_vertex(OpenMeshT::Point(vertexloop[0], vertexloop[1], 0)));
 				
 				setvertexmark(vertexloop, vertexnumber);
 				vertexnumber++;
@@ -315,88 +351,11 @@ static int triangle_create()
 			face_vhandles.emplace_back(meshVertexs[vertexmark(p1)]);
 			face_vhandles.emplace_back(meshVertexs[vertexmark(p2)]);
 			face_vhandles.emplace_back(meshVertexs[vertexmark(p3)]);
-			mesh.add_face(face_vhandles);
+			meshFases.emplace_back(meshs.add_face(face_vhandles));
+			meshFasesVhandles.emplace_back(face_vhandles);
 			triangleloop.tri = triangletraverse(m);
 			elementnumber++;
 		}
-
-		const auto num = meshVertexs.size();
-		//std::cout << "原始坐标" << std::endl;
-		auto triplet = std::vector<Tpt_d>();
-		auto laplace_cords = std::vector<cv::Point2d>();
-		Eigen::VectorXd ori_x(num);
-		Eigen::VectorXd ori_y(num);
-		for(size_t i = 0;i != meshVertexs.size();++i) {
-			laplace_cords.emplace_back(laplace_cord(mesh, meshVertexs[i], triplet));
-			ori_x(i) = mesh.point(meshVertexs[i])[0];
-			ori_y(i) = mesh.point(meshVertexs[i])[1];
-		}
-
-		//std::cout << ori_x << std::endl << ori_y << std::endl;
-
-		triplet.emplace_back(Tpt_d(num + 0, 0, 1));
-		triplet.emplace_back(Tpt_d(num + 1, 1, 1));
-		triplet.emplace_back(Tpt_d(num + 2, 2, 1));
-		
-		auto laplace_mat = Spm_d(num + 3, meshVertexs.size());
-		laplace_mat.setFromTriplets(triplet.begin(), triplet.end());
-
-		//std::cout << std::endl << std::endl;
-
-		//std::cout << "拉普拉斯坐标" << std::endl;
-		auto delta = Eigen::MatrixX2d(num + 3, 2);
-
-		for (size_t i = 0; i != laplace_cords.size(); ++i) {
-			delta(i, 0) = laplace_cords[i].x;
-			delta(i, 1) = laplace_cords[i].y;
-		}
-
-		delta(num + 0,0) = mesh.point(meshVertexs[0])[0];
-		delta(num + 1,0) = mesh.point(meshVertexs[1])[0];
-		delta(num + 2,0) = mesh.point(meshVertexs[2])[0];
-
-		delta(num + 0,1) = mesh.point(meshVertexs[0])[1];
-		delta(num + 1,1) = mesh.point(meshVertexs[1])[1];
-		delta(num + 2,1) = mesh.point(meshVertexs[2])[1];
-
-		//std::cout << delta_x << std::endl << delta_y << std::endl;
-		laplace_mat.makeCompressed();
-		Eigen::LeastSquaresConjugateGradient <Spm_d> lspg;
-		lspg.setTolerance(0.0002);
-		lspg.compute(laplace_mat);
-		//if (lspg.info() != Eigen::Success) {
-		//	//std::cout << "!!!" << std::endl;
-		//}
-		Eigen::MatrixX2d xx = lspg.solve(delta);
-
-		//if (lspg.info() != Eigen::Success) {
-		//	//std::cout << "!!!" << std::endl;
-		//}
-		//std::cout << "LeastSquaresConjugateGradient" << std::endl;
-		//std::cout << xx << std::endl;
-		//std::cout << yy << std::endl;
-
-		//std::cout << "拉普拉斯矩阵 * LeastSquaresConjugateGradient" << std::endl;
-		//std::cout << laplace_mat * xx << std::endl << std::endl;
-		//std::cout << laplace_mat * yy << std::endl << std::endl;
-		
-		std::cout << "#iterations:     " << lspg.iterations() << std::endl;
-		std::cout << "estimated error: " << lspg.error() << std::endl;
-
-		for (auto p : vertexsFin) {
-			draw_point(dst, p, cv::Scalar(0, 200, 0, 0), 5);
-		}
-
-		for (size_t i = 0; i != num;++i) {
-			draw_point(dst, cv::Point(xx(i ,0), xx(i ,1)), cv::Scalar(0, 0, 255, 0), 2);
-		}
-
-		for (auto a : trisegsFin) {
-			draw_line(dst, cv::Point(xx(a.x ,0), xx(a.x ,1)), cv::Point(xx(a.y, 0), xx(a.y, 1)));
-		}
-				
-		cv::namedWindow("x", 1);
-		imshow("x", dst);
 
 		triangle_context_destroy(ctx);
 
@@ -463,10 +422,9 @@ static void mouse_event_handle(int event, int x, int y, int flags, void* ustc)
 		if (points.size() >= 3 && if_in_range(pt, points)) {
 			imshow(mainWindowName, src);
 			cv::setMouseCallback(mainWindowName, nullptr, nullptr);
-			//cv::setMouseCallback(mainWindowName, drag_point, nullptr);
 			oriPoints.insert(oriPoints.cend(), points.begin(), points.end());
-			//addPoint();
 			triangle_create();
+			cv::setMouseCallback(mainWindowName, selectPoint, nullptr);
 		} else {
 			points.push_back(pt);
 			temp = string_format("%d (%d,%d)", n, pt.x, pt.y);

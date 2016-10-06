@@ -79,7 +79,7 @@ static void draw_point(cv::Mat& img, cv::Point fp, cv::Scalar color, int rad = 2
 static void draw_line(cv::Mat& img, cv::Point p1, cv::Point p2, cv::Scalar color = cv::Scalar(0, 0, 0))
 {
 	line(img, p1, p2,
-		color, 2, cv::LineTypes::LINE_AA);
+		color, 1, cv::LineTypes::LINE_AA);
 }
 
 static void draw_text(cv::Mat& img, cv::String text, cv::Point org, cv::Scalar color = cv::Scalar(0, 0, 0))
