@@ -27,7 +27,7 @@ class Show : public QMainWindow
 	Q_OBJECT
 
 public:
-	Show(QWidget *parent = Q_NULLPTR);
+	Show(QWidget *parent, QImage x);
 	QPushButton *back;
 	QPushButton *keep;
 	QLabel *label;
@@ -36,8 +36,8 @@ public:
 
 private:
 	Ui::QtGuiClass ui;
-
-	private slots: //�������ܲۺ���
+	QImage imagex;
+	private slots: 
 	void FkeepImg();
 	void StyleChange();
 };

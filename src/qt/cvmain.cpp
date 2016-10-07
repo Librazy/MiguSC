@@ -3,8 +3,8 @@
 #endif
 
 #include "util.h"
-#include "main.h"
-#include "triangle/util.h"
+#include "cvmain.h"
+#include "../triangle/util.h"
 
 #include <vector>
 
@@ -178,15 +178,27 @@ cv::Mat dragPoint(int event, int x, int y)
 		lspg.setTolerance(0.0003);
 		lspg.compute(laplace_mat);
 		cache = lspg.solve(delta);
-
 		init = true;
 	}
+
 	static auto isDragging = false;
 	static size_t m = 0;
 	auto pt = cv::Point2d(x, y);
 	auto min = norm(pt - get_point(meshs, meshFixedVertexs[0]));
-
+	auto dst4 = ori.clone();
 	switch (event) {
+	case -1:
+		for (size_t ii = 0; ii != count; ++ii) {
+			draw_point(dst4, cv::Point(cache(ii, 0), cache(ii, 1)), cv::Scalar(0, 0, 255, 0), 2);
+		}
+		for (size_t ii = 0; ii != fixed_count; ++ii) {
+			draw_point(dst4, get_point(meshs, meshFixedVertexs[ii]), cv::Scalar(255, 0, 255, 0), 4);
+		}
+		for (auto a : trisegsFin) {
+			draw_line(dst4, cv::Point(cache(a.x, 0), cache(a.x, 1)), cv::Point(cache(a.y, 0), cache(a.y, 1)));
+		}
+		return dst4;
+
 	case CV_EVENT_MOUSEMOVE:
 		if (isDragging) {
 			meshs.point(meshFixedVertexs[m])[0] = pt.x;
@@ -202,15 +214,15 @@ cv::Mat dragPoint(int event, int x, int y)
 				min = norm(pt - get_point(meshs, meshFixedVertexs[m]));
 			}
 		}
-		isDragging = true;
+		if (min < 20) {
+			isDragging = true;
+		}
 		break;
 	case CV_EVENT_LBUTTONUP:
 		isDragging = false;
 		break;
-	default:break;
-	}
-	auto dst4 = ori.clone();
-	if (isDragging) {
+	case -2:
+	{
 		delta(count + m, 0) = meshs.point(meshFixedVertexs[m])[0];
 		delta(count + m, 1) = meshs.point(meshFixedVertexs[m])[1];
 
@@ -234,7 +246,7 @@ cv::Mat dragPoint(int event, int x, int y)
 				cv::Point(meshFasesOriPoints[i][2].x, meshFasesOriPoints[i][2].y)
 			};
 
-			auto aff_p = std::vector<cv::Point>{ 
+			auto aff_p = std::vector<cv::Point>{
 				get_pointi(meshs, meshFasesVhandles[i][0]),
 				get_pointi(meshs, meshFasesVhandles[i][1]),
 				get_pointi(meshs, meshFasesVhandles[i][2])
@@ -272,17 +284,86 @@ cv::Mat dragPoint(int event, int x, int y)
 			warpAffine(dst, dst2, affTrans, size, cv::InterpolationFlags::INTER_AREA);
 			dst2.copyTo(dst4, mask2);
 		}
+		return dst4;
 	}
-	for (size_t i = 0; i != count; ++i) {
-		draw_point(dst4, cv::Point(cache(i, 0), cache(i, 1)), cv::Scalar(0, 0, 255, 0), 2);
+	default:break;
 	}
-	for (size_t i = 0; i != fixed_count; ++i) {
-		draw_point(dst4, get_point(meshs, meshFixedVertexs[i]), cv::Scalar(255, 0, 255, 0), 4);
+	auto dst5 = ori.clone();
+	if (isDragging) {
+		delta(count + m, 0) = meshs.point(meshFixedVertexs[m])[0];
+		delta(count + m, 1) = meshs.point(meshFixedVertexs[m])[1];
+
+		cache = lspg.solveWithGuess(delta, cache);
+		for (size_t i = 0; i != meshVertexs.size(); ++i) {
+			meshs.point(meshVertexs[i])[0] = cache(i, 0);
+			meshs.point(meshVertexs[i])[1] = cache(i, 1);
+		}
+		const auto size = cv::Size(ori.cols, ori.rows);
+		cv::Mat dst2;
+		dst = ori.clone();
+
+		static const cv::Mat black(size, src.type(), cv::Scalar::all(0));
+		for (size_t i = 0; i != meshFasesVhandles.size(); ++i) {
+			cv::Mat mask(size, CV_8UC1, cv::Scalar(0));
+			cv::Mat mask2(size, CV_8UC1, cv::Scalar(0));
+
+			auto ori_p = std::vector<cv::Point>{
+				cv::Point(meshFasesOriPoints[i][0].x, meshFasesOriPoints[i][0].y),
+				cv::Point(meshFasesOriPoints[i][1].x, meshFasesOriPoints[i][1].y),
+				cv::Point(meshFasesOriPoints[i][2].x, meshFasesOriPoints[i][2].y)
+			};
+
+			auto aff_p = std::vector<cv::Point>{
+				get_pointi(meshs, meshFasesVhandles[i][0]),
+				get_pointi(meshs, meshFasesVhandles[i][1]),
+				get_pointi(meshs, meshFasesVhandles[i][2])
+			};
+
+			auto ori_pf = std::vector<cv::Point2f>{
+				cv::Point2f(meshFasesOriPoints[i][0].x, meshFasesOriPoints[i][0].y),
+				cv::Point2f(meshFasesOriPoints[i][1].x, meshFasesOriPoints[i][1].y),
+				cv::Point2f(meshFasesOriPoints[i][2].x, meshFasesOriPoints[i][2].y)
+			};
+
+			auto aff_pf = std::vector<cv::Point2f>{
+				get_pointf(meshs, meshFasesVhandles[i][0]),
+				get_pointf(meshs, meshFasesVhandles[i][1]),
+				get_pointf(meshs, meshFasesVhandles[i][2])
+			};
+
+			std::vector<std::vector<cv::Point> >  ori_ord{
+				ori_p
+			};
+
+			std::vector<std::vector<cv::Point> >  aff_ord{
+				aff_p
+			};
+
+			drawContours(mask, ori_ord, 0, cv::Scalar(255), CV_FILLED, 8);
+			drawContours(mask2, aff_ord, 0, cv::Scalar(255), CV_FILLED, 8);
+
+			cv::Mat kernel(cv::Size(3, 3), CV_8UC1);
+			kernel.setTo(cv::Scalar(1));
+			dilate(mask, mask, kernel, cv::Point(-1, -1), 4);
+
+			ori.copyTo(dst, mask);
+			auto affTrans = getAffineTransform(ori_pf, aff_pf);
+			warpAffine(dst, dst2, affTrans, size, cv::InterpolationFlags::INTER_AREA);
+			dst2.copyTo(dst5, mask2);
+
+			for (size_t ii = 0; ii != count; ++ii) {
+				draw_point(dst5, cv::Point(cache(ii, 0), cache(ii, 1)), cv::Scalar(0, 0, 255, 0), 2);
+			}
+			for (size_t ii = 0; ii != fixed_count; ++ii) {
+				draw_point(dst5, get_point(meshs, meshFixedVertexs[ii]), cv::Scalar(255, 0, 255, 0), 4);
+			}
+			for (auto a : trisegsFin) {
+				draw_line(dst5, cv::Point(cache(a.x, 0), cache(a.x, 1)), cv::Point(cache(a.y, 0), cache(a.y, 1)));
+			}
+		}
+		return dst5;
 	}
-	for (auto a : trisegsFin) {
-		draw_line(dst4, cv::Point(cache(a.x, 0), cache(a.x, 1)), cv::Point(cache(a.y, 0), cache(a.y, 1)));
-	}
-	return dst4;
+	return cv::Mat(1, 1, CV_8UC1);
 }
 
 std::pair<bool, cv::Mat> selectPoint(int event, int x, int y)
@@ -334,7 +415,7 @@ int triangle_create()
 	auto ctx = triangle_context_create();
 	auto in = new triangleio();
 	reset_triangleio(in);
-	triangle_context_options(ctx, "pq15a2048");
+	triangle_context_options(ctx, "pq15a1024");
 	in->numberofsegments = oriPoints.size();
 	in->numberofpoints = oriPoints.size();
 
@@ -475,7 +556,7 @@ std::pair<bool, cv::Mat> addPoint(int event, int x, int y)
 			temp = string_format("%s", "");
 		}
 		else {
-			temp = string_format("%d (%d,%d)", n + 1, pt.x, pt.y);
+			temp = string_format("%d (%d,%d)", n, pt.x, pt.y);
 		}
 
 		draw_text(src, temp, pt, get_inverseColor(clrText));

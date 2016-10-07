@@ -11,7 +11,7 @@
 
 #include <memory>
 
-#include "triangle/triangle_internal.h"
+#include "../triangle/triangle_internal.h"
 
 #include <OpenMesh/Core/IO/MeshIO.hh>
 #include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
@@ -71,12 +71,12 @@ struct imgText
 	{}
 };
 
-static void draw_point(cv::Mat& img, cv::Point fp, cv::Scalar color, int rad = 2)
+static void draw_point(cv::Mat& img, cv::Point fp, cv::Scalar color, int rad = 1)
 {
 	circle(img, fp, rad, color, CV_FILLED, CV_AA, 0);
 }
 
-static void draw_line(cv::Mat& img, cv::Point p1, cv::Point p2, cv::Scalar color = cv::Scalar(0, 0, 0))
+static void draw_line(cv::Mat& img, cv::Point p1, cv::Point p2, cv::Scalar color = cv::Scalar(50, 50 ,0))
 {
 	line(img, p1, p2,
 		color, 1, cv::LineTypes::LINE_AA);
@@ -85,10 +85,10 @@ static void draw_line(cv::Mat& img, cv::Point p1, cv::Point p2, cv::Scalar color
 static void draw_text(cv::Mat& img, cv::String text, cv::Point org, cv::Scalar color = cv::Scalar(0, 0, 0))
 {
 	int baseline;
-	auto size = getTextSize(text, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.5, 1, &baseline);
+	auto size = getTextSize(text, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.3, 1, &baseline);
 	cv::Point tmp_pt = { bound(org.x, 0, img.cols - size.width),
 					bound(org.y, size.height + baseline, img.rows - 1 - baseline) };
-	putText(img, text, tmp_pt, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.5, color, 1, cv::LineTypes::LINE_AA);
+	putText(img, text, tmp_pt, cv::HersheyFonts::FONT_HERSHEY_COMPLEX, 0.3, color, 1, cv::LineTypes::LINE_AA);
 }
 
 static void draw_text(cv::Mat& img, imgText label)

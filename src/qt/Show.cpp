@@ -4,7 +4,7 @@
 
 
 
-Show::Show(QWidget *parent)
+Show::Show(QWidget *parent, QImage x)
 	: QMainWindow(parent)
 {
 	ui.setupUi(this);
@@ -13,9 +13,6 @@ Show::Show(QWidget *parent)
 	this->setMinimumSize(1000, 600);
 	this->setStyleSheet("background:#111;font-size:12px;");
 	this->setWindowFlags(Qt::FramelessWindowHint);	
-
-
-
 
 	back = new QPushButton("<", this);
 	back->setStyleSheet("color: #666;background:#111;font-size:64px;border:none");
@@ -28,21 +25,18 @@ Show::Show(QWidget *parent)
 	connect(keep, SIGNAL(released()), this, SLOT(FkeepImg()));
 	connect(keep, SIGNAL(pressed()), this, SLOT(StyleChange()));
 
-	QMovie*movie = new QMovie("editarea");
-
 	label = new QLabel(this);
 	label->setGeometry(220, 40, 540, 420);
 	label->setScaledContents(true);
 	label->setStyleSheet("border:4px solid #222;border-radius:2px;");
-	label->setMovie(movie);
-	movie->start();
-
+	label->setPixmap(QPixmap::fromImage(x));
+	imagex = x.copy();
 
 }
 
 void Show::FkeepImg()
 {
-
+	imagex.save("Smile.jpg");
 }
 
 void Show::StyleChange()

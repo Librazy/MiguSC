@@ -6377,9 +6377,10 @@ void insertsegment(mesh *m, behavior *b,
 
   /* Find a triangle whose origin is the segment's first endpoint. */
   checkvertex = (vertex) NULL;
-  encodedtri = vertex2tri(endpoint1);
+  encodedtri = ((triangle *) (endpoint1))[m->vertex2triindex];
   if (encodedtri != (triangle) NULL) {
-    decode(encodedtri, searchtri1);
+    (searchtri1).orient = (int) ((ULONG_PTR) (encodedtri) & (ULONG_PTR) 3l);
+  	(searchtri1).tri = (triangle *) ((ULONG_PTR) (encodedtri) ^ (ULONG_PTR) (searchtri1).orient);
     org(searchtri1, checkvertex);
   }
   if (checkvertex != endpoint1) {

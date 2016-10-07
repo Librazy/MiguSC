@@ -61,6 +61,9 @@ private slots:
 public:
 	void mousePressEvent(QMouseEvent *) override;
 	void mouseMoveEvent(QMouseEvent *) override;
-	bool callAddPoint(QMouseEvent *m, int type);
+	void mouseReleaseEvent(QMouseEvent *) override;
+	bool callAddPoint(QMouseEvent *m, int type); 
+	bool callSelectPoint(QMouseEvent *m, int type);
+	bool callDragPoint(QMouseEvent *m, int type);
 };
 

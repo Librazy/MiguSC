@@ -1,4 +1,4 @@
-#include <main.h>
+#include "cvmain.h"
 #include <opencv2/highgui.hpp>
 #include "Edit.h"
 #include "Show.h"
@@ -94,14 +94,13 @@ void Edit::editAnchor()
 }
 void Edit::editDeformation() 
 {
-	step = 3;
-
 	instruction->close();
 	imglabel2->close();
 	insRect->close();
 	parameter->close();
 	finish2->close();
 
+	step = 3;
 	insRect->setGeometry(800, 30, 160, 460);
 	insRect->setStyleSheet("border:1px solid #999;background:#222;border-radius:4px");
 	insRect->show();
@@ -135,7 +134,12 @@ void Edit::step2()
 }
 void Edit::step3()
 {
-	Show *w = new Show();
+	auto pic = dragPoint(-2, 0, 0);
+	Mat rgb;
+	cvtColor(pic, rgb, CV_BGR2RGB);
+	auto img = QImage(static_cast<const unsigned char*>(rgb.data), rgb.cols, rgb.rows, QImage::Format_RGB888);
+
+	Show *w = new Show(nullptr, img);
 	w->show();
 	finish3->setStyleSheet("font-family:'Microsoft JhengHei UI';color:rgb(255,20,13);font-size:18px;border:1px solid rgb(255,20,13);border-radius:4px;");
 	this->hide();
@@ -171,22 +175,76 @@ bool Edit::callAddPoint(QMouseEvent *m, int type)
 	return add.first;
 }
 
+bool Edit::callSelectPoint(QMouseEvent *m, int type)
+{
+	Px = (static_cast<double>(m->pos().x()) - labelPos.x()) / static_cast<double>(imglabel->size().width());
+	Py = (static_cast<double>(m->pos().y()) - labelPos.y()) / static_cast<double>(imglabel->size().height());
+	auto imgx = static_cast<int>(Px * editarea.size().width());
+	auto imgy = static_cast<int>(Py * editarea.size().height());
+	auto add = selectPoint(type, imgx, imgy);
+	auto pic = add.second;
+	cv::Mat rgb;
+	cvtColor(pic, rgb, CV_BGR2RGB);
+	auto img = QImage(static_cast<const unsigned char*>(rgb.data), rgb.cols, rgb.rows, QImage::Format_RGB888);
+	imglabel->setPixmap(QPixmap::fromImage(img));
+	return add.first;
+}
+
+bool Edit::callDragPoint(QMouseEvent *m, int type)
+{
+	Px = (static_cast<double>(m->pos().x()) - labelPos.x()) / static_cast<double>(imglabel->size().width());
+	Py = (static_cast<double>(m->pos().y()) - labelPos.y()) / static_cast<double>(imglabel->size().height());
+	auto imgx = static_cast<int>(Px * editarea.size().width());
+	auto imgy = static_cast<int>(Py * editarea.size().height());
+	auto pic = dragPoint(type, imgx, imgy);
+	if(pic.cols == 1) {
+		return true;
+	}
+	Mat rgb;
+	cvtColor(pic, rgb, CV_BGR2RGB);
+	auto img = QImage(static_cast<const unsigned char*>(rgb.data), rgb.cols, rgb.rows, QImage::Format_RGB888);
+	imglabel->setPixmap(QPixmap::fromImage(img));
+	return false;
+}
+
+void Edit::mouseReleaseEvent(QMouseEvent *m)
+{
+	if (step == 3) {
+		QRect labelRect = QRect(labelPos, imglabel->size());
+		if (labelRect.contains(m->pos())) {
+			if (m->button() == Qt::LeftButton) {
+				callDragPoint(m, CV_EVENT_LBUTTONUP);
+			}
+		}
+	}
+}
 void Edit::mousePressEvent(QMouseEvent *m)
 {
 	QRect labelRect = QRect(labelPos, imglabel->size());
-
 	if (labelRect.contains(m->pos())) {
-		
 		if (m->buttons() & Qt::LeftButton) {
-
-			if (step == 1)
-			{
-				callAddPoint(m,CV_EVENT_LBUTTONDOWN);
+			if (step == 1) {
+				if (callAddPoint(m, CV_EVENT_LBUTTONDOWN)) { step1(); }
+			} 
+			else if(step == 2) {
+				if (callSelectPoint(m, CV_EVENT_LBUTTONDOWN)) {
+					step2();
+					callDragPoint(m, -1); 
+				}
+			}
+			else if (step == 3) {
+				callDragPoint(m, CV_EVENT_LBUTTONDOWN);
 			}
 		} else if (m->buttons() & Qt::RightButton) {
-			if (step == 1)
-			{
-				callAddPoint(m, CV_EVENT_RBUTTONDOWN);
+			if (step == 1){
+				if (callAddPoint(m, CV_EVENT_RBUTTONDOWN)) { step1(); }
+			} 
+			else if (step == 2) {
+				if (callSelectPoint(m, CV_EVENT_RBUTTONDOWN)) {
+					step2();
+					callDragPoint(m, -1);
+
+				}
 			}
 		}
 	} 
@@ -197,6 +255,18 @@ void Edit::mouseMoveEvent(QMouseEvent *m)
 	{
 		if (!(m->buttons() & Qt::LeftButton)) {
 			callAddPoint(m,CV_EVENT_MOUSEMOVE);
+		}
+	}
+	else if (step == 2)
+	{
+		if (!(m->buttons() & Qt::LeftButton)) {
+			callSelectPoint(m, CV_EVENT_MOUSEMOVE);
+		}
+	}
+	else if (step == 3)
+	{
+		if (m->buttons() & Qt::LeftButton) {
+			callDragPoint(m, CV_EVENT_MOUSEMOVE);
 		}
 	}
 }
