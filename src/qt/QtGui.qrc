@@ -1,4 +1,8 @@
 <RCC>
-    <qresource prefix="QtGui">
+    <qresource prefix="/QtGui">
+        <file>example1.jpg</file>
+        <file>example2.jpg</file>
+        <file>example3.jpg</file>
+        <file>welcome.gif</file>
     </qresource>
 </RCC>

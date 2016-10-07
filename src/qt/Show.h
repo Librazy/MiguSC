@@ -39,6 +39,6 @@ private:
 	QImage imagex;
 	private slots: 
 	void FkeepImg();
-	void StyleChange();
+	void StyleChange() const;
 };
 #pragma once

@@ -36,10 +36,16 @@ Show::Show(QWidget *parent, QImage x)
 
 void Show::FkeepImg()
 {
-	imagex.save("Smile.jpg");
+	QString saveSrc = QFileDialog::getSaveFileName(
+		this, "Save image file",
+		".",
+		"Image files (*.bmp *.jpg *.pbm *.pgm *.png *.ppm *.xbm *.xpm);;All files (*.*)");
+
+	imagex.save(saveSrc);
+	exit(0);
 }
 
-void Show::StyleChange()
+void Show::StyleChange() const
 {
 	keep->setStyleSheet("color: #122;background:white;font-size:18px;border:1px solid white;border-radius:4px");
 }

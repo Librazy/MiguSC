@@ -44,7 +44,7 @@ Edit::Edit(QWidget *parent)
 	imglabel2 = new QLabel(this);
 	imglabel2->setGeometry(810, 40, 140, 180);
 	imglabel2->setScaledContents(true);
-	example = QImage("example1.jpg");
+	example = QImage(":/QtGui/example1.jpg");
 	imglabel2->setPixmap(QPixmap::fromImage(example));
 	imglabel2->show();
 	
@@ -74,7 +74,7 @@ void Edit::editAnchor()
 	instruction->setText("<h2>Anchor the Points</h2><p>Anchor the anchor point<br/> on the image, the <br/> anchor part will not be <br/>deformed to move. <br/> <br/> If the face is pinned, <br/> if the body is pegged<br/> joints.</p>");
 	instruction->show();
 
-	example = QImage("example2.jpg");
+	example = QImage(":/QtGui/example2.jpg");
 	imglabel2->setPixmap(QPixmap::fromImage(example));
 	imglabel2->show();
 
@@ -85,7 +85,7 @@ void Edit::editAnchor()
 	parameter->setText("Num of Points: 0<br/>X: 0; Y: 0<br/>Width:  740;   Height: 540<br/>");
 	parameter->show();
 
-	finish2 = new QPushButton("Next Step", this);
+	finish2 = new QPushButton(":/QtGui/Next Step", this);
 	finish2->setStyleSheet("font-family:'Microsoft JhengHei UI';color:rgb(250,60,13);font-size:18px;border:1px solid rgb(200,90,13);border-radius:4px;");
 	finish2->setGeometry(QRect(800, 520, 160, 50));
 	finish2->show();

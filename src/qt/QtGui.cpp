@@ -31,7 +31,7 @@ QtGui::QtGui(QWidget *parent)
 	connect(openImg, SIGNAL(released()), this, SLOT(FopenImg()));
 	connect(openImg, SIGNAL(pressed()), this, SLOT(StyleChange()));
 
-	QMovie*movie = new QMovie("welcome.gif");
+	QMovie*movie = new QMovie(":/QtGui/welcome.gif");
 	
 	label = new QLabel(this);
 	label->setGeometry(120, 80, 760, 360);
